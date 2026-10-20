@@ -85,7 +85,7 @@ cazador-de-tendencias/
 │   ├── biblioteca.js       # biblioteca de fotos por tipo de prenda (la usa la página)
 │   └── biblioteca.json     # la misma biblioteca en JSON, para leer o reutilizar
 ├── img/
-│   └── biblioteca/         # 51 fotos de referencia (Unsplash, licencia libre)
+│   └── biblioteca/         # 132 fotos de referencia en 30 tipos de prenda (Unsplash)
 ├── docs/
 │   ├── como-funciona.md    # arquitectura, IA, fórmulas y decisiones
 │   ├── publicar-en-github.md
@@ -103,7 +103,8 @@ cazador-de-tendencias/
 - **IA**: Claude (Anthropic). Dentro de Claude usa la capacidad `sample` del artifact. Fuera de Claude, por defecto usa **Puter.js**, que da acceso gratis a Claude desde el navegador (modelo `claude-sonnet-5-5`; el uso corre por la cuenta de Puter de cada visitante). En Render, `server.js` llama a la API de Mensajes con la clave guardada en el servidor. Si no hay servidor, la página puede llamar a la API directo desde el navegador con la clave del usuario.
 - **Servidor** (opcional): Node.js sin dependencias, con límite de búsquedas por persona y por día.
 - **Datos**: base de datos del artifact (`db`) dentro de Claude, o `localStorage` fuera.
-- **Fotos**: biblioteca propia de 51 fotos y fotos que suben los usuarios (pegar con Ctrl+V, arrastrar o subir).
+- **Fotos en vivo** (fuera de Claude): la IA escribe en inglés cómo buscar una foto de cada tendencia (`foto_busqueda`) y la página la busca en el momento en [Pixabay](https://pixabay.com/api/docs/). Solo usa fotos cuyas etiquetas principales nombran exactamente esa prenda; si no hay, usa la biblioteca. Las búsquedas se guardan 24 horas, como pide Pixabay, y cada foto muestra su crédito. La clave de Pixabay es gratis y está en `index.html` (`PIXABAY_KEY`).
+- **Fotos**: biblioteca propia de 132 fotos de referencia en 30 tipos de prenda (gorros, sombreros, pilusos, calzas, lentes y gorras de mujer incluidos). Cada tarjeta muestra solo fotos del mismo tipo de prenda que la tendencia, sin repetir entre tarjetas; si no hay una foto correcta muestra un boceto en vez de otra prenda, fotos que suben los usuarios (pegar con Ctrl+V, arrastrar o subir) y, fuera de Claude, **una imagen por tendencia generada por IA** con Puter (`puter.ai.txt2img`), a partir de la descripción que escribe Claude (`foto_prompt`).
 - **Tipografías**: Bodoni Moda y Albert Sans (Google Fonts).
 
 El detalle de la arquitectura, los pedidos a la IA y las fórmulas está en [`docs/como-funciona.md`](docs/como-funciona.md).
@@ -113,6 +114,7 @@ El detalle de la arquitectura, los pedidos a la IA y las fórmulas está en [`do
 ## Limitaciones (importante para la defensa)
 
 - **Los puntajes de tendencia y los precios los estima la IA** con lo que sabe; no son datos en tiempo real. Instagram, TikTok y Pinterest no permiten leer sus datos libremente, y Shein bloquea las consultas automáticas. Por eso cada tendencia trae enlaces a la búsqueda real ("Dónde se vio la tendencia", "Ver en Shein", "Buscar" en cada proveedor y la sección "Ver en las webs").
+- **Las fotos en vivo vienen de un banco de fotos (Pixabay)**, no de Instagram, TikTok ni Pinterest, que no dejan usar sus fotos en otras páginas. Pixabay tiene pocas fotos de algunas prendas; en ese caso se usa la biblioteca. Dentro de Claude no hay fotos en vivo porque Claude bloquea las imágenes de afuera.
 - **Las fotos son de referencia**, elegidas según el tipo de prenda. Una página no puede traer fotos de otras webs mientras alguien la usa (bloqueo de seguridad del navegador y de Claude). Para mostrar el producto exacto, se pega la foto en la tarjeta.
 - **Los porcentajes de importación formal (70 %) y Mercosur (30 %) son estimaciones** y se pueden cambiar. Hay que confirmarlos con un despachante de aduana antes de importar.
 - La **franquicia** de compras al exterior es para uso personal. Para revender se usa la prestación única o una importación formal.

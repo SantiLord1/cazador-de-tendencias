@@ -628,41 +628,69 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   var ASSETS=null,DB=null,FOTOS={},MAXF=3;
   function fkey(tn){return norm(STATE.query)+"--"+norm(tn);}
   function fillPhotos(){
-    var els=document.querySelectorAll("section[data-fk]");
-    for(var i=0;i<els.length;i++)paintPhotos(els[i]);
+    var els=document.querySelectorAll("section[data-fk]"),used={},need={};
+    for(var i=0;i<els.length;i++){var c=els[i].dataset.cat;if(!(FOTOS[els[i].dataset.fk]||[]).length)need[c]=(need[c]||0)+1;}
+    for(var k=0;k<els.length;k++){var ct=els[k].dataset.cat,n=(LIB[ct]||[]).length;paintPhotos(els[k],used,Math.min(2,Math.max(1,Math.floor(n/(need[ct]||1)))));}
   }
   // ---------- photo library: real photos by garment type, picked automatically ----------
-  var LIB={};
-  var CATS=["bermuda_h","short_m","jean_h","jean_m","pantalon_m","cargo","camisa_h","camisa_m","remera_h","remera_m","top_m","vestido","pollera","campera_h","campera_m","buzo","sweater","zapatillas","sandalias","bikini","bano_h","gorra","lentes","deportivo"];
-  var RELATED={short_m:["bermuda_h"],bermuda_h:["short_m"],jean_m:["jean_h"],jean_h:["jean_m"],camisa_m:["camisa_h","remera_m"],camisa_h:["camisa_m","remera_h"],remera_m:["remera_h","top_m"],remera_h:["remera_m"],top_m:["remera_m"],campera_m:["campera_h","sweater"],campera_h:["campera_m","buzo"],buzo:["sweater"],sweater:["buzo"],pantalon_m:["jean_m","cargo"],cargo:["pantalon_m","jean_h"],sandalias:["zapatillas"],zapatillas:["sandalias"],bano_h:["bermuda_h"],bikini:["top_m"],deportivo:["buzo","remera_m"],vestido:["pollera","top_m"],pollera:["vestido"],gorra:["remera_h"],lentes:["remera_m"]};
-  function catFor(t,i){
-    var c=String(t.foto_categoria||"").toLowerCase();if(CATS.indexOf(c)>=0)return c;
-    var nz=function(s){return " "+String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")+" ";};
-    var g=detectPublico(t.nombre)||STATE.publico||"unisex";var w=g==="mujer"?"m":(g==="hombre"?"h":(i%2?"m":"h"));
-    var R=[[/zapatill|sneaker|tenis/,"zapatillas"],[/sandal|ojota|alpargat|chancl|zueco|calzado/,"sandalias"],[/short de bano|malla de hombre|swim short/,"bano_h"],[/bikini|malla|traje de bano|enteriz|swimsuit/,w==="h"?"bano_h":"bikini"],[/gorr|sombrer|piluso|bucket|[^a-z]cap[^a-z]/,"gorra"],[/lente|gafa|anteojo/,"lentes"],[/deportiv|jogging|calza|legging|biker|athleisure/,"deportivo"],[/vestido|solero|dress/,"vestido"],[/pollera|falda|skirt/,"pollera"],[/bermud|short|jort/,w==="m"?"short_m":"bermuda_h"],[/cargo/,"cargo"],[/jean|denim|vaquer/,w==="m"?"jean_m":"jean_h"],[/pantal|palazzo|trouser|wide leg|jogger/,w==="m"?"pantalon_m":"cargo"],[/buzo|hoodie|canguro|sudadera/,"buzo"],[/sweater|cardigan|tejid|punto|pullover|knit|chaleco/,"sweater"],[/campera|chaqueta|blazer|saco|tapado|abrigo|jacket|parka/,w==="m"?"campera_m":"campera_h"],[/[^a-z]top|musculosa|crop|corset|bralette/,w==="h"?"remera_h":"top_m"],[/camisa|blusa|shirt|guayabera|kimono/,w==="m"?"camisa_m":"camisa_h"],[/remera|camiseta|t-shirt|polo|[^a-z]tee/,w==="m"?"remera_m":"remera_h"]];
-    var texts=[nz(t.nombre),nz(STATE.query)];
-    for(var x=0;x<texts.length;x++)for(var k=0;k<R.length;k++)if(R[k][0].test(texts[x]))return R[k][1];
+  var LIB={},AIIMG={};
+  var CATS=["bermuda_h","short_m","jean_h","jean_m","pantalon_m","cargo","calza","camisa_h","camisa_m","remera_h","remera_m","top_m","vestido","pollera","campera_h","campera_m","buzo","sweater","zapatillas","sandalias","bikini","bano_h","gorra","gorra_m","gorro_lana","sombrero","piluso","lentes","lentes_m","deportivo"];
+  // Family = the same kind of garment. Photos are only ever borrowed inside a family (never a remera for a gorro).
+  var FAM={bermuda_h:"short",short_m:"short",jean_h:"jean",jean_m:"jean",pantalon_m:"pantalon",cargo:"pantalon",calza:"calza",deportivo:"calza",camisa_h:"camisa",camisa_m:"camisa",remera_h:"remera",remera_m:"remera",top_m:"top",vestido:"vestido",pollera:"pollera",campera_h:"campera",campera_m:"campera",buzo:"buzo",sweater:"sweater",zapatillas:"zapatillas",sandalias:"sandalias",bikini:"malla",bano_h:"malla",gorra:"gorra",gorra_m:"gorra",gorro_lana:"gorro_lana",sombrero:"sombrero",piluso:"piluso",lentes:"lentes",lentes_m:"lentes"};
+  // Same garment, other gender. Used only as a last resort, and the gender asked for in the search wins.
+  var TWIN={bermuda_h:"short_m",short_m:"bermuda_h",jean_h:"jean_m",jean_m:"jean_h",camisa_h:"camisa_m",camisa_m:"camisa_h",remera_h:"remera_m",remera_m:"remera_h",campera_h:"campera_m",campera_m:"campera_h",gorra:"gorra_m",gorra_m:"gorra",lentes:"lentes_m",lentes_m:"lentes",bikini:"bano_h",bano_h:"bikini"};
+  var GEN={bermuda_h:"h",short_m:"m",jean_h:"h",jean_m:"m",camisa_h:"h",camisa_m:"m",remera_h:"h",remera_m:"m",campera_h:"h",campera_m:"m",gorra:"h",gorra_m:"m",lentes:"h",lentes_m:"m",bikini:"m",bano_h:"h"};
+  function catRule(txt,w,weak){
+    var t=" "+String(txt||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")+" ";
+    var R=[[/zapatill|sneaker|tenis/,"zapatillas"],[/sandal|ojota|alpargat|chancl|zueco/,"sandalias"],[/short de bano|malla de hombre|swim short/,"bano_h"],[/bikini|malla|traje de bano|enteriz|swimsuit/,w==="h"?"bano_h":"bikini"],[/piluso|bucket/,"piluso"],[/sombrer|fedora|capelin|panama/,"sombrero"],[/gorra|[^a-z]cap[^a-z]|trucker|visera|beisbol|baseball/,w==="m"?"gorra_m":"gorra"],[/gorro|beanie|boina|pasamonta|balaclava|orejer/,"gorro_lana"],[/lente|gafa|anteojo/,w==="m"?"lentes_m":"lentes"],[/calza|legging|biker/,"calza"],[/deportiv|jogging|athleisure|conjunto de gimnasio/,"deportivo"],[/vestido|solero|dress/,"vestido"],[/pollera|falda|skirt/,"pollera"],[/bermud|short|jort/,w==="m"?"short_m":"bermuda_h"],[/cargo/,"cargo"],[/jean|denim|vaquer/,w==="m"?"jean_m":"jean_h"],[/pantal|palazzo|trouser|wide leg|jogger/,w==="m"?"pantalon_m":"cargo"],[/buzo|hoodie|canguro|sudadera/,"buzo"],[/sweater|cardigan|pullover|chaleco|pulover/,"sweater"],[/campera|chaqueta|blazer|saco|tapado|abrigo|jacket|parka/,w==="m"?"campera_m":"campera_h"],[/[^a-z]top|musculosa|crop|corset|bralette/,w==="h"?"remera_h":"top_m"],[/camisa|blusa|shirt|guayabera|kimono/,w==="m"?"camisa_m":"camisa_h"],[/remera|camiseta|t-shirt|polo|[^a-z]tee/,w==="m"?"remera_m":"remera_h"],[/tejid|punto|knit/,"sweater",1]];
+    for(var k=0;k<R.length;k++)if(R[k][0].test(t))return weak?(R[k][2]?"weak":R[k][1]):R[k][1];
     return "";
   }
-  function libPhotos(cat,seed){
+  function catFor(t,i){
+    var g=detectPublico(t.nombre)||STATE.publico||"unisex";var w=g==="mujer"?"m":(g==="hombre"?"h":(i%2?"m":"h"));
+    var ai=String(t.foto_categoria||"").toLowerCase();if(CATS.indexOf(ai)<0)ai="";
+    if(ai&&GEN[ai]&&(g==="mujer"||g==="hombre")&&GEN[ai]!==w&&TWIN[ai])ai=TWIN[ai];
+    var byName=catRule(t.nombre,w),byQuery=catRule(STATE.query,w);
+    if(byName&&byQuery&&catRule(t.nombre,w,1)==="weak"&&FAM[byQuery]!==FAM[byName])byName="";
+    if(byName)return ai&&FAM[ai]===FAM[byName]&&(GEN[ai]||w)===(GEN[byName]||w)?ai:byName;
+    if(ai)return byQuery&&FAM[ai]!==FAM[byQuery]?byQuery:ai;
+    return byQuery;
+  }
+
+  // Picks library photos for a garment type. Photos already shown in another card are skipped so the cards
+  // do not repeat; if a type runs out it repeats one of its own photos instead of showing another garment.
+  // It can borrow from the same kind of garment (e.g. calza and deportivo); the other gender only if the type has no photos.
+  function libPhotos(cat,seed,used,per){
     if(!cat)return [];
-    var order=[cat].concat(RELATED[cat]||[]),list=[],exact=true;
-    for(var i=0;i<order.length;i++){if((LIB[order[i]]||[]).length){list=LIB[order[i]];exact=i===0;break;}}
-    if(!list.length)return [];
+    used=used||{};per=per||2;
     var h=0;for(var j=0;j<seed.length;j++)h=(h*31+seed.charCodeAt(j))>>>0;
-    var out=[];for(var n=0;n<Math.min(2,list.length);n++)out.push(Object.assign({ref:true,exact:exact},list[(h+n)%list.length]));
+    var rot=function(l){var o=[];for(var n=0;n<l.length;n++)o.push(Object.assign({ref:true},l[(h+n)%l.length]));return o;};
+    var isNew=function(f){return !used[f.url]};
+    var own=rot(LIB[cat]||[]),kin=[];
+    CATS.forEach(function(c){if(c!==cat&&c!==TWIN[cat]&&FAM[c]===FAM[cat])kin=kin.concat(rot(LIB[c]||[]));});
+    var out=own.filter(isNew).slice(0,per);
+    if(!out.length)out=kin.filter(isNew).slice(0,1);
+    if(!out.length&&own.length)out=[own[0]];
+    if(!out.length&&TWIN[cat])out=rot(LIB[TWIN[cat]]||[]).slice(0,1);
+    out.forEach(function(f){used[f.url]=1});
     return out;
   }
-  function paintPhotos(el){
+
+  function paintPhotos(el,used,per){
     var key=el.dataset.fk,own=FOTOS[key]||[],gal=el.querySelector(".gal"),sk=el.querySelector(".sketch-wrap"),up=el.querySelector(".up-wrap");
-    var arr=own.length?own:libPhotos(el.dataset.cat,el.dataset.tn||"");
+    var live=own.length?[]:(LIVE[el.dataset.tn+"|"+STATE.query]||[]).filter(function(f){return !used[f.url]}).slice(0,2);
+    live.forEach(function(f){used[f.url]=1});
+    var arr=own.length?own:(live.length>=2?[]:libPhotos(el.dataset.cat,el.dataset.tn||"",used,per));
+    var gen=!own.length&&!live.length&&AIIMG[el.dataset.tn+"|"+STATE.query];
+    if(gen)arr=[{url:gen,ai:true}].concat(arr.slice(0,1));
+    if(live.length)arr=live.map(function(f){return Object.assign({ref:true,px:true},f)}).concat(arr).slice(0,2);
     if(arr.length){
       gal.hidden=false;sk.hidden=true;
-      gal.innerHTML=arr.map(function(f){return '<div class="ph"><img src="'+esc(f.url)+'" alt="'+(f.ref?'Foto de referencia para ':'Foto real de ')+esc(el.dataset.tn)+'" loading="lazy">'+(f.ref?'<span class="refb">Foto de referencia</span>':'')+(f.autor?'<a class="cr" href="'+esc(/^https:\/\/unsplash\.com\//.test(f.link||'')?f.link:'https://unsplash.com')+'" target="_blank" rel="noopener">Foto: '+esc(f.autor)+' · Unsplash</a>':'')+(ASSETS&&DB&&!f.ref?'<button type="button" class="rm" data-fk="'+esc(key)+'" data-id="'+esc(f.id)+'" aria-label="Quitar foto">×</button>':'')+'</div>'}).join("");
+      gal.innerHTML=arr.map(function(f){return '<div class="ph"><img src="'+esc(f.url)+'" alt="'+(f.ai?'Imagen generada por IA de ':(f.ref?'Foto de referencia para ':'Foto real de '))+esc(el.dataset.tn)+'" loading="lazy">'+(f.ai?'<span class="refb">Imagen generada por IA</span>':(f.px?'<span class="refb">Foto en vivo</span>':(f.ref?'<span class="refb">Foto de referencia</span>':'')))+(f.autor?(f.px?'<a class="cr" href="'+esc(/^https:\/\/pixabay\.com\//.test(f.link||'')?f.link:'https://pixabay.com')+'" target="_blank" rel="noopener">Foto: '+esc(f.autor)+' · Pixabay</a>':'<a class="cr" href="'+esc(/^https:\/\/unsplash\.com\//.test(f.link||'')?f.link:'https://unsplash.com')+'" target="_blank" rel="noopener">Foto: '+esc(f.autor)+' · Unsplash</a>'):'')+(ASSETS&&DB&&!f.ref?'<button type="button" class="rm" data-fk="'+esc(key)+'" data-id="'+esc(f.id)+'" aria-label="Quitar foto">×</button>':'')+'</div>'}).join("");
     }else{gal.hidden=true;gal.innerHTML="";sk.hidden=false;}
     if(up)up.hidden=!(ASSETS&&DB)||own.length>=MAXF;
     var hint=el.querySelector(".paste-hint");if(hint)hint.hidden=!(ASSETS&&DB)||own.length>=MAXF;
-    var cap=el.querySelector(".lib-cap");if(cap)cap.hidden=!(arr.length&&!own.length);
+    var cap=el.querySelector(".lib-cap");if(cap){cap.hidden=!(arr.length&&!own.length);cap.textContent=live.length?"La página buscó estas fotos en vivo en Pixabay con la descripción que escribió la IA. Pegá una foto exacta de esta tendencia para reemplazarlas.":"La página eligió estas fotos solas según el tipo de prenda. Pegá una foto exacta de esta tendencia para reemplazarlas.";}
   }
   function phMsg(key,t,err){var el=document.querySelector('section[data-fk="'+key+'"] .ph-msg');if(el){el.textContent=t||"";el.className="ph-msg"+(err?" err":"");}}
 
@@ -716,7 +744,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     var c=e.target.closest("#copyBtn");if(c)copyAnalysis();
     if(e.target.closest("#verEj")){STATE={data:EXAMPLE,example:true,query:"bermuda",marca:"",publico:"unisex"};render();$("results").scrollIntoView({behavior:"smooth",block:"start"});}
   });
-  function paintAll(key){var el=document.querySelector('section[data-fk="'+key+'"]');if(el)paintPhotos(el);}
+  function paintAll(){fillPhotos();}
 
   var STATE={data:EXAMPLE,example:true,query:"bermuda",marca:""};
 
@@ -1115,6 +1143,89 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
       .then(function(){AL.gen=false;});
   }
 
+  // ---------- live photos (outside Claude): the AI writes what to search and the page asks Pixabay ----------
+  // Pixabay allows showing search results live (https://pixabay.com/api/docs/). Results are cached 24 h as
+  // its rules ask. A photo is only used if its main tags name the same garment as the card.
+  var PIXABAY_KEY="58143512-deb60c3ff67f218e5bb6d5056";
+  var LIVE={},LIVERUN=0;
+  var CAT_EN={bermuda_h:["men shorts",/^(men'?s )?(shorts|bermuda shorts|bermudas)$/],short_m:["women shorts",/^((women'?s|denim|jean) )?shorts$/],jean_h:["men jeans",/^(jeans|denim|blue jeans)$/],jean_m:["women jeans",/^(jeans|denim|blue jeans)$/],pantalon_m:["women trousers",/^(trousers|pants|wide leg pants|palazzo)$/],cargo:["cargo pants",/^(cargo pants|cargo|trousers|pants)$/],calza:["leggings",/^(leggings|yoga pants)$/],camisa_h:["men shirt",/^((men'?s|linen|white|dress) )?shirt$/],camisa_m:["women blouse",/^(blouse|shirt)$/],remera_h:["men t-shirt",/^(t-shirt|tshirt|t shirt|tee)$/],remera_m:["women t-shirt",/^(t-shirt|tshirt|t shirt|tee)$/],top_m:["crop top",/^(crop top|top|tank top)$/],vestido:["dress woman",/^((summer|white|long) )?dress$/],pollera:["skirt woman",/^((mini|midi|long) )?skirt$/],campera_h:["men jacket",/^((leather|denim) )?(jacket|coat|blazer)$/],campera_m:["women jacket",/^((leather|denim) )?(jacket|coat|blazer)$/],buzo:["hoodie",/^(hoodie|sweatshirt)$/],sweater:["knit sweater",/^(sweater|knitwear|cardigan|pullover|jumper)$/],zapatillas:["sneakers",/^(sneakers?|trainers?)$/],sandalias:["sandals",/^sandals?$/],bikini:["bikini",/^(bikini|swimsuit|swimwear)$/],bano_h:["men swim shorts",/^(swim shorts|swimming trunks|board shorts|swimwear)$/],gorra:["baseball cap",/^((baseball|trucker) )?cap$/],gorra_m:["woman baseball cap",/^((baseball|trucker) )?cap$/],gorro_lana:["beanie",/^(beanie|knit hat|knitted hat|winter hat|wool hat|bonnet)$/],sombrero:["sun hat woman",/^((straw|sun|summer|wide brim) )?hat$/],piluso:["bucket hat",/^bucket hat$/],lentes:["sunglasses",/^(sunglasses|glasses)$/],lentes_m:["woman sunglasses",/^(sunglasses|glasses)$/],deportivo:["sportswear",/^(sportswear|activewear|leggings|tracksuit)$/]};
+  function liveOn(){return !hasClaude&&!!PIXABAY_KEY&&!STATE.example;}
+  function pxSearch(q){
+    q=String(q||"").replace(/\s+/g," ").trim().slice(0,90);if(!q)return Promise.resolve([]);
+    var ck="ct_px:"+q.toLowerCase();
+    try{var c=JSON.parse(localStorage.getItem(ck)||"null");if(c&&Date.now()-c.t<20*3600*1000)return Promise.resolve(c.h);}catch(e){}
+    var ctl=window.AbortController?new AbortController():null,tm=setTimeout(function(){if(ctl)ctl.abort()},9000);
+    return fetch("https://pixabay.com/api/?key="+PIXABAY_KEY+"&q="+encodeURIComponent(q)+"&image_type=photo&safesearch=true&per_page=20",ctl?{signal:ctl.signal}:{})
+      .then(function(r){return r.ok?r.json():{hits:[]}})
+      .then(function(d){
+        var h=(d.hits||[]).filter(function(x){return /^https:\/\/(cdn\.)?pixabay\.com\//.test(x.webformatURL||"")}).map(function(x){return {id:"px"+x.id,url:x.webformatURL,autor:x.user||"Pixabay",link:/^https:\/\/pixabay\.com\//.test(x.pageURL||"")?x.pageURL:"https://pixabay.com",tags:String(x.tags||"").toLowerCase()}});
+        try{localStorage.setItem(ck,JSON.stringify({t:Date.now(),h:h}))}catch(e){}
+        return h;
+      })
+      .catch(function(){return []})
+      .then(function(h){clearTimeout(tm);return h;});
+  }
+  // tries the AI's search, then the Shein search, then a generic one for the garment type
+  function livePhotosFor(t,cat){
+    var ce=CAT_EN[cat];if(!ce)return Promise.resolve([]);
+    var who=STATE.publico==="mujer"?" woman":(STATE.publico==="hombre"?" man":(STATE.publico==="ninos"?" kids":""));
+    var qs=[t.foto_busqueda,t.shein_busqueda,ce[0]+(/woman|men|man/.test(ce[0])?"":who)].filter(function(x,i,a){return x&&a.indexOf(x)===i});
+    var good=[];
+    // position of the first main tag that is exactly the garment (Pixabay lists the main tags first); -1 = not the garment
+    var pos=function(x){var tg=x.tags.split(",").map(function(w){return w.trim()}).slice(0,3);for(var k=0;k<tg.length;k++)if(ce[1].test(tg[k]))return k;return -1;};
+    var step=function(i){
+      if(i>=qs.length||good.length>=3)return Promise.resolve(good);
+      return pxSearch(qs[i]).then(function(h){
+        h.map(function(x,n){return {x:x,p:pos(x),n:n}}).filter(function(o){return o.p>=0}).sort(function(a,b){return a.p-b.p||a.n-b.n})
+          .forEach(function(o){if(good.every(function(g){return g.id!==o.x.id}))good.push(o.x)});
+        return step(i+1);
+      });
+    };
+    return step(0);
+  }
+  function queueLivePhotos(done){
+    if(!liveOn()){done&&done();return;}
+    var run=++LIVERUN,q=STATE.query,ts=(STATE.data&&STATE.data.tendencias)||[];
+    var secs=document.querySelectorAll("section[data-fk]");
+    for(var i=0;i<secs.length;i++)phMsg(secs[i].dataset.fk,"Buscando fotos en vivo…");
+    Promise.all(ts.map(function(t,i){
+      var key=t.nombre+"|"+q;if(LIVE[key])return null;
+      return livePhotosFor(t,catFor(t,i)).then(function(h){LIVE[key]=h;});
+    })).then(function(){
+      if(run!==LIVERUN||q!==STATE.query)return;
+      var secs=document.querySelectorAll("section[data-fk]");for(var i=0;i<secs.length;i++)phMsg(secs[i].dataset.fk,"");
+      fillPhotos();done&&done();
+    });
+  }
+
+  // Image per trend generated by AI through Puter (only outside Claude, where the page can show it).
+  // Runs one at a time after the results appear; the library photos stay meanwhile.
+  var AIQ=[],AIBUSY=false,AIRUN=0;
+  function aiImagePrompt(t){
+    var cols=(t.colores||[]).map(function(c){return c&&c.nombre}).filter(Boolean).slice(0,2).join(" and ");
+    var pr=t.presentacion||{},fondo=(pr.fondo&&pr.fondo.nombre)||"plain light";
+    var who=STATE.publico==="mujer"?"a woman":(STATE.publico==="hombre"?"a man":(STATE.publico==="ninos"?"a child":"a model"));
+    return String(t.foto_prompt||("Fashion e-commerce photo of "+who+" wearing "+t.nombre+(cols?" in "+cols:"")+", full outfit, "+fondo+" background, natural light, realistic, no text, no logos"));
+  }
+  function queueAIImages(){
+    if(!(sample&&sample.__puter&&window.puter&&window.puter.ai&&window.puter.ai.txt2img)||STATE.example)return;
+    var run=++AIRUN,ts=(STATE.data&&STATE.data.tendencias||[]).slice().sort(function(a,b){return num(b.puntaje)-num(a.puntaje)}).slice(0,4);
+    AIQ=ts.filter(function(t){var k=t.nombre+"|"+STATE.query;return !AIIMG[k]&&!(LIVE[k]&&LIVE[k].length)}).map(function(t){return {t:t,q:STATE.query,run:run}});
+    nextAIImage();
+  }
+  function nextAIImage(){
+    if(AIBUSY||!AIQ.length)return;
+    var job=AIQ.shift();if(job.run!==AIRUN)return nextAIImage();
+    AIBUSY=true;
+    var key=job.t.nombre+"|"+job.q;
+    phMsg(fkey(job.t.nombre),"La IA está generando una imagen…");
+    var opts={provider:"cloudflare",ratio:{w:4,h:5}};
+    Promise.resolve(window.puter.ai.txt2img(aiImagePrompt(job.t),opts)).catch(function(){return window.puter.ai.txt2img(aiImagePrompt(job.t));})
+      .then(function(img){var src=img&&(img.src||(img.toString&&img.toString()));if(src&&/^(data:image|https:)/.test(src)){AIIMG[key]=src;}})
+      .catch(function(){})
+      .then(function(){AIBUSY=false;if(job.run===AIRUN&&job.q===STATE.query){fillPhotos();phMsg(fkey(job.t.nombre),"");}nextAIImage();});
+  }
+
   function prompt(q,marca){
     return ["Sos analista de tendencias de moda y e-commerce. Ayudás a un emprendedor que importa ropa para revender en Uruguay.",
       "Fecha: octubre de 2026; en Uruguay se viene el verano.",
@@ -1125,7 +1236,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
       "Identificá las "+(sample&&sample.__puter?"4":"5")+" variantes o estilos de esta prenda con más tracción hoy en TikTok, Instagram, Pinterest y los más vendidos de Amazon, según lo que sabés."+(sample&&sample.__puter?" Sé muy conciso: frases de pocas palabras y como máximo 4 proveedores por variante.":""),
       "Para cada variante estimá también el precio típico por unidad en Shein (shein_usd, en dólares, lo que paga un cliente en la web) y la búsqueda en inglés para encontrarla en Shein (shein_busqueda). Evaluá tres filtros: tendencia (true si tiene al menos una temporada más de vida, false si es moda pasajera), uruguay (true si sirve para el clima y el estilo de Uruguay) y hueco (true si en Uruguay todavía hay lugar: poca oferta o mala oferta).",
       "Para cada variante listá en proveedores de 4 a 6 lugares donde un importador uruguayo la puede comprar para revender. canal es uno de: aliexpress, alibaba, 1688, shein, temu, amazon, brasil (mayoristas de Brás, São Paulo), local (mayoristas en Uruguay). Mezclá minoristas (para probar con pocas unidades) y mayoristas (más baratos, con pedido mínimo). Para cada uno: precio_usd por unidad (si es local o Brasil, pasalo a dólares), minimo (pedido mínimo en unidades; 1 si no hay), dias (demora estimada hasta Uruguay, por ejemplo \"15-30\" o \"Inmediato\"), nota (1 frase útil: calidad, riesgo o consejo) y busqueda (cómo buscarla en ese sitio: en inglés para China y EE.UU., en portugués para Brasil, en español para Uruguay).",
-      "Para cada variante elegí foto_categoria: el tipo de prenda más parecido de esta lista, teniendo en cuenta el público (sufijo _h hombre, _m mujer): "+CATS.join(", ")+". Si no hay uno exacto, elegí el más cercano visualmente (por ejemplo un chaleco tejido → sweater, un kimono → camisa_m, unas alpargatas → sandalias).",
+      "Para cada variante elegí foto_categoria de esta lista (sufijo _h hombre, _m mujer; respetá el público): "+CATS.join(", ")+". Tiene que ser EXACTAMENTE el mismo tipo de prenda: un gorro nunca es una remera, una calza nunca es un pantalón de vestir. Ejemplos: beanie o gorro tejido → gorro_lana, bucket hat → piluso, sombrero de paja → sombrero, gorra de mujer → gorra_m, leggings → calza, chaleco tejido → sweater, kimono → camisa_m, alpargatas → sandalias. Si ninguna categoría es el mismo tipo de prenda, poné foto_categoria: \"\".",
+      "En foto_busqueda escribí en inglés, en 2 a 4 palabras, cómo buscar una foto de esa variante en un banco de fotos: la prenda con su rasgo principal y el público (por ejemplo \"corduroy bucket hat woman\", \"linen shirt man\").",
+      "En foto_prompt escribí en inglés, en una frase, cómo sería una foto de producto de esa variante para e-commerce: quién la usa (según el público), colores, fondo y luz; sin texto ni logos.",
       "Armá además una radiografía de la prenda: 3 o 4 ítems en cada categoría (cortes, estilos, colores, telas), cada uno con nombre, detalle de una frase y estado: \"fuerte\" (ya se usa mucho), \"subida\" (está creciendo) o \"bajando\" (pierde fuerza). Incluí al menos uno \"bajando\" en total.",
       "Sumá un veredicto de 1-2 frases sobre qué conviene traer, el nombre de la temporada (por ejemplo \"Verano 2026–2027\") y el mes ideal para vender abreviado (por ejemplo \"Dic.\").",
       "Para cada una: estimá el precio por unidad en origen (Amazon, Shein, AliExpress o Temu) y el de venta en Uruguay (Mercado Libre Uruguay, cadenas grandes y marcas locales). Si no se consigue en Uruguay, precio_uy_uyu = null y presencia_uy = \"no llegó\".",
@@ -1134,7 +1247,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
       "En presentacion, describí cómo hacer la foto de producto: fondo (nombre y hex), 1 o 2 accesorios que acompañen, una frase de copy y un gancho para TikTok.",
       "Son estimaciones: usá rangos realistas y marcá tu confianza. Español rioplatense, frases muy cortas. Puntajes de 0 a 100. Colores en hex reales.",
       "Respondé SOLO con JSON con esta forma:",
-      '{"prenda":string,"temporada_label":string,"veredicto":string,"mes_venta":string,"resumen":string (1-2 frases),"temporada":string (1 frase),"oportunidad":string (1 frase),"radiografia":{"cortes":[{"nombre":string,"detalle":string,"estado":"fuerte"|"subida"|"bajando"}],"estilos":[...],"colores":[...],"telas":[...]},"marcas":{"internacionales":[string],"uruguay":[string]},"tendencias":[{"nombre":string,"descripcion":string (1 frase),"puntaje":number,"plataformas":{"tiktok":number,"instagram":number,"pinterest":number,"amazon":number},"fuentes":[{"plataforma":string,"busqueda":string,"que_se_ve":string}],"marcas":[string],"colores":[{"nombre":string,"hex":"#RRGGBB"}] (3),"precio_origen_usd":{"min":number,"max":number},"fuente_origen":string,"precio_uy_uyu":{"min":number,"max":number}|null,"presencia_uy":"alta"|"media"|"baja"|"no llegó","shein_usd":number,"shein_busqueda":string,"filtros":{"tendencia":boolean,"uruguay":boolean,"hueco":boolean},"foto_categoria":string,"proveedores":[{"canal":string,"precio_usd":number,"minimo":number,"dias":string,"nota":string,"busqueda":string}],"publico":string,"presentacion":{"foto":string,"fondo":{"nombre":string,"hex":"#RRGGBB"},"props":[string],"copy":string,"hook":string},"riesgo":string,"confianza":"alta"|"media"|"baja"}]}'
+      '{"prenda":string,"temporada_label":string,"veredicto":string,"mes_venta":string,"resumen":string (1-2 frases),"temporada":string (1 frase),"oportunidad":string (1 frase),"radiografia":{"cortes":[{"nombre":string,"detalle":string,"estado":"fuerte"|"subida"|"bajando"}],"estilos":[...],"colores":[...],"telas":[...]},"marcas":{"internacionales":[string],"uruguay":[string]},"tendencias":[{"nombre":string,"descripcion":string (1 frase),"puntaje":number,"plataformas":{"tiktok":number,"instagram":number,"pinterest":number,"amazon":number},"fuentes":[{"plataforma":string,"busqueda":string,"que_se_ve":string}],"marcas":[string],"colores":[{"nombre":string,"hex":"#RRGGBB"}] (3),"precio_origen_usd":{"min":number,"max":number},"fuente_origen":string,"precio_uy_uyu":{"min":number,"max":number}|null,"presencia_uy":"alta"|"media"|"baja"|"no llegó","shein_usd":number,"shein_busqueda":string,"filtros":{"tendencia":boolean,"uruguay":boolean,"hueco":boolean},"foto_categoria":string,"foto_busqueda":string,"foto_prompt":string,"proveedores":[{"canal":string,"precio_usd":number,"minimo":number,"dias":string,"nota":string,"busqueda":string}],"publico":string,"presentacion":{"foto":string,"fondo":{"nombre":string,"hex":"#RRGGBB"},"props":[string],"copy":string,"hook":string},"riesgo":string,"confianza":"alta"|"media"|"baja"}]}'
     ].join("\n");
   }
 
@@ -1159,7 +1272,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     sample.json(prompt(q,marca),{signal:my.signal,modelTier:"default",cache:{gcTime:86400000}})
       .then(function(d){if(my!==ctl)return;STATE={data:validate(d),example:false,query:q,marca:marca,publico:S.publico};addHist(q);})
       .catch(function(e){if(my!==ctl)return;var c=e&&e.code;if(c==="cancelled")note("Búsqueda detenida.");else if(sample&&sample.__puter&&(c==="not_granted"||c==="rate_limited")){note(c==="not_granted"?"Para buscar hay que entrar o crear una cuenta gratis de Puter. Tocá <b>Cazar tendencias</b> de nuevo y aceptá la ventana que aparece.":"Tu cuenta de Puter llegó a su límite de uso gratis por ahora. Probá más tarde o con otra cuenta.",true);}else if(c==="not_granted"&&sample&&sample.__api){status("off","Clave inválida");note("La clave de API no es válida o no tiene permisos. Revisala en Supuestos de importación.",true);}else{if(c==="not_granted"||c==="sampling_disabled")status("off","Sin permiso de IA");note(ERR[c]||"Hubo un problema de conexión. Probá de nuevo.",true);}})
-      .then(function(){if(my===ctl){hideLoading();$("go").disabled=false;render();}});
+      .then(function(){if(my===ctl){hideLoading();$("go").disabled=false;render();queueLivePhotos(queueAIImages);}});
   }
   $("form").addEventListener("submit",function(e){e.preventDefault();run($("q").value,$("marca").value);});
 
