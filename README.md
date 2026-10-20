@@ -47,8 +47,12 @@ La página es **un solo archivo HTML**, sin instalación ni servidor propio. Fun
 | Modo | Cuándo | IA | Datos y fotos que suben |
 |---|---|---|---|
 | **Dentro de Claude** | Publicada como artifact en claude.ai | La de la cuenta de Claude de quien la abre | Base de datos compartida del artifact |
-| **Con clave de API** | Abierta desde GitHub Pages o el archivo local, con una clave cargada en *Supuestos de importación* | API de Claude (Anthropic) | Se guardan en el navegador (localStorage) |
-| **Modo ejemplo** | Sin Claude y sin clave | No hay búsqueda en vivo | Muestra el ejemplo precargado de bermudas |
+| **Gratis con Puter** (por defecto fuera de Claude) | Publicada en Render (Static Site), GitHub Pages o abierta local | Claude a través de [Puter.js](https://developer.puter.com/ai/anthropic): cada visitante entra con una cuenta gratis de Puter y el uso va por su cuenta. **Al dueño de la página no le cuesta nada** | Se guardan en el navegador (localStorage) |
+| **En Render con servidor** | Publicada como *Web Service* con `server.js` y la clave en una variable de entorno | API de Claude, con tu clave guardada en el servidor y límite diario | Se guardan en el navegador (localStorage) |
+| **Con clave de API** | Abierta desde GitHub Pages, un Static Site o el archivo local, con una clave cargada en *Supuestos de importación* | API de Claude (Anthropic) | Se guardan en el navegador (localStorage) |
+| **Modo ejemplo** | Si no carga ninguna IA (por ejemplo, sin internet) | No hay búsqueda en vivo | Muestra el ejemplo precargado de bermudas |
+
+Fuera de Claude, la página prueba en este orden: tu clave de API (si cargaste una), el servidor `server.js` (si existe) y, si no hay ninguno, **Claude gratis con Puter**.
 
 ### Abrirla en la computadora
 
@@ -63,9 +67,10 @@ La página es **un solo archivo HTML**, sin instalación ni servidor propio. Fun
 
 El modelo por defecto es `claude-sonnet-5-5` y se puede cambiar en el mismo panel.
 
-### Publicarla gratis con GitHub Pages
+### Publicarla para que todos la usen
 
-Ver [`docs/publicar-en-github.md`](docs/publicar-en-github.md).
+- **Render con la IA funcionando para todos** (recomendado): ver [`docs/publicar-en-render.md`](docs/publicar-en-render.md).
+- **GitHub Pages** (sin servidor; cada uno carga su clave): ver [`docs/publicar-en-github.md`](docs/publicar-en-github.md).
 
 ---
 
@@ -74,6 +79,8 @@ Ver [`docs/publicar-en-github.md`](docs/publicar-en-github.md).
 ```
 cazador-de-tendencias/
 ├── index.html              # la página completa (HTML + CSS + JavaScript)
+├── server.js               # servidor opcional para Render: sirve la página y guarda la clave de API
+├── package.json            # datos del proyecto para Node (sin dependencias)
 ├── data/
 │   ├── biblioteca.js       # biblioteca de fotos por tipo de prenda (la usa la página)
 │   └── biblioteca.json     # la misma biblioteca en JSON, para leer o reutilizar
@@ -81,7 +88,8 @@ cazador-de-tendencias/
 │   └── biblioteca/         # 51 fotos de referencia (Unsplash, licencia libre)
 ├── docs/
 │   ├── como-funciona.md    # arquitectura, IA, fórmulas y decisiones
-│   └── publicar-en-github.md
+│   ├── publicar-en-github.md
+│   └── publicar-en-render.md
 ├── CREDITOS.md             # fotógrafo y enlace de cada foto
 ├── LICENSE
 └── README.md
@@ -92,7 +100,8 @@ cazador-de-tendencias/
 ## Tecnología
 
 - **HTML, CSS y JavaScript puro**, sin frameworks ni compilación.
-- **IA**: Claude (Anthropic). Dentro de Claude usa la capacidad `sample` del artifact; fuera de Claude llama a la API de Mensajes de Anthropic desde el navegador.
+- **IA**: Claude (Anthropic). Dentro de Claude usa la capacidad `sample` del artifact. Fuera de Claude, por defecto usa **Puter.js**, que da acceso gratis a Claude desde el navegador (modelo `claude-sonnet-5-5`; el uso corre por la cuenta de Puter de cada visitante). En Render, `server.js` llama a la API de Mensajes con la clave guardada en el servidor. Si no hay servidor, la página puede llamar a la API directo desde el navegador con la clave del usuario.
+- **Servidor** (opcional): Node.js sin dependencias, con límite de búsquedas por persona y por día.
 - **Datos**: base de datos del artifact (`db`) dentro de Claude, o `localStorage` fuera.
 - **Fotos**: biblioteca propia de 51 fotos y fotos que suben los usuarios (pegar con Ctrl+V, arrastrar o subir).
 - **Tipografías**: Bodoni Moda y Albert Sans (Google Fonts).

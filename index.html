@@ -865,9 +865,17 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   // Outside Claude (GitHub Pages, a local file) it falls back to: Claude API with the user's own key,
   // localStorage as database, and the photo library in data/biblioteca.js.
   var hasClaude=!!(window.claude&&typeof window.claude.use==="function");
-  var NOTE_DEMO=hasClaude?'La búsqueda en vivo funciona al abrir la página dentro de Claude. Abajo ves un ejemplo.':'Para buscar en vivo, abrí <b>Supuestos de importación</b> y cargá tu clave de API de Claude. Mientras tanto ves un ejemplo.';
+  var NOTE_DEMO=hasClaude?'La búsqueda en vivo funciona al abrir la página dentro de Claude. Abajo ves un ejemplo.':'No se pudo cargar la IA gratis (Puter). Revisá tu conexión y recargá la página, o cargá una clave de API en <b>Supuestos de importación</b>. Mientras tanto ves un ejemplo.';
   var LOCAL={
-    sample:function(){var k="",m="";try{k=localStorage.getItem("ct_api_key")||"";m=localStorage.getItem("ct_api_model")||""}catch(e){}return k?apiSample(k,m||"claude-sonnet-5-5"):null;},
+    sample:function(){
+      var k="",m="";try{k=localStorage.getItem("ct_api_key")||"";m=localStorage.getItem("ct_api_model")||""}catch(e){}
+      if(k)return apiSample(k,m||"claude-sonnet-5-5");
+      // page served by server.js (Render Web Service): use its /api/ia, the key stays on the server
+      var server=location.protocol.indexOf("http")===0
+        ?fetch("api/estado",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){return j&&j.ia?serverSample():null}).catch(function(){return null})
+        :Promise.resolve(null);
+      return server.then(function(s){return s||puterSample();});
+    },
     db:function(){return localDB();},
     assets:function(){return localAssets();}
   };
@@ -894,12 +902,77 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
         return {text:t,truncated:j.stop_reason==="max_tokens"};
       });
     };
+    var f=wrapSample(call);f.__api=true;return f;
+  }
+  // Free mode outside Claude: Puter.js runs Claude in the browser. Each visitor signs in with a free
+  // Puter account and the usage goes to that account, so the site owner pays nothing.
+  var PUTER_MODEL="claude-sonnet-5-5";
+  function loadPuter(){
+    if(window.puter&&window.puter.ai)return Promise.resolve(window.puter);
+    return new Promise(function(res){
+      var sc=document.createElement("script");sc.src="https://js.puter.com/v2/";sc.async=true;
+      var done=false,fin=function(v){if(!done){done=true;res(v)}};
+      sc.onload=function(){fin(window.puter&&window.puter.ai?window.puter:null)};
+      sc.onerror=function(){fin(null)};
+      setTimeout(function(){fin(window.puter&&window.puter.ai?window.puter:null)},10000);
+      document.head.appendChild(sc);
+    });
+  }
+  function puterSample(){
+    return loadPuter().then(function(P){
+      if(!P)return null;
+      var call=function(input,opts){
+        opts=opts||{};
+        var signal=opts.signal;
+        if(signal&&signal.aborted)return Promise.reject({code:"cancelled"});
+        var ready;
+        try{ready=(P.auth&&P.auth.isSignedIn&&!P.auth.isSignedIn())?P.auth.signIn():Promise.resolve();}catch(e){ready=Promise.resolve();}
+        var work=Promise.resolve(ready).then(function(){},function(){throw {code:"not_granted",puter:true};})
+          .then(function(){return P.ai.chat(String(input),{model:PUTER_MODEL});})
+          .then(function(r){
+            var t="";
+            try{var c=r&&r.message&&r.message.content;t=typeof c==="string"?c:(Array.isArray(c)?c.map(function(x){return x&&x.text||""}).join(""):"");}catch(e){}
+            if(!t&&r&&typeof r.text==="string")t=r.text;
+            if(!t&&typeof r==="string")t=r;
+            if(!t&&r&&r.toString&&r.toString()!=="[object Object]")t=r.toString();
+            if(!String(t).trim())throw {code:"empty_completion"};
+            return {text:String(t),truncated:false};
+          },function(e){
+            if(e&&e.code&&typeof e.code==="string"&&/^(not_granted|cancelled)$/.test(e.code))throw e;
+            var msg=String((e&&(e.message||e.error&&e.error.message||e.error))||"");
+            if(/insufficient|funds|credit|limit|quota|usage/i.test(msg))throw {code:"rate_limited",puter:true};
+            if(/auth|sign|login|token/i.test(msg))throw {code:"not_granted",puter:true};
+            throw {code:"upstream_error"};
+          });
+        if(!signal)return work;
+        return Promise.race([work,new Promise(function(_,rej){signal.addEventListener("abort",function(){rej({code:"cancelled"})},{once:true})})]);
+      };
+      var f=wrapSample(call);f.__puter=true;return f;
+    });
+  }
+  function serverSample(){
+    var call=function(input,opts){
+      opts=opts||{};
+      return fetch("api/ia",{method:"POST",signal:opts.signal,headers:{"content-type":"application/json"},body:JSON.stringify({input:String(input)})})
+      .then(function(r){
+        if(r.status===429)throw {code:"rate_limited"};
+        if(!r.ok)throw {code:"upstream_error"};
+        return r.json();
+      },function(e){throw (e&&e.name==="AbortError")?{code:"cancelled"}:{code:"upstream_error"};})
+      .then(function(j){
+        var t=String(j.text||"");
+        if(!t.trim())throw {code:"empty_completion"};
+        return {text:t,truncated:j.stop_reason==="max_tokens"};
+      });
+    };
+    var f=wrapSample(call);f.__server=true;return f;
+  }
+  function wrapSample(call){
     var f=function(i,o){return call(i,o)};
     f.json=function(i,o){return call(String(i)+"\n\nRespondé solo con el JSON, sin texto antes ni después.",o).then(function(r){
       var t=r.text,a=t.search(/[\[{]/),b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
       try{return JSON.parse(t.slice(a,b+1))}catch(e){throw {code:"invalid_json",text:t}}
     })};
-    f.__api=true;
     return f;
   }
   function localDB(){
@@ -933,7 +1006,12 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   // photo URLs the page accepts: Claude file storage, the repo's own images, or local data URLs
   function okUrl(u){u=String(u||"");return /^\/_blob\/[0-9a-f]+$/.test(u)||/^img\/[\w\/.-]+\.jpe?g$/.test(u)||/^data:image\/(jpeg|png|webp);base64,/.test(u);}
   var samplePromise=use("sample");
-  samplePromise.then(function(s){sample=s;ready=true;if(s)status("on",s.__api?"IA lista · API de Claude":"IA lista");else{status("off","Modo ejemplo");note(NOTE_DEMO,true);}});
+  samplePromise.then(function(s){
+    sample=s;ready=true;
+    if(!s){status("off","Modo ejemplo");note(NOTE_DEMO,true);return;}
+    status("on",s.__api?"IA lista · tu clave de API":(s.__puter?"IA lista · Claude gratis":"IA lista"));
+    if(s.__puter)note("Búsqueda en vivo gratis con Claude. La primera vez te va a pedir entrar o crear una cuenta gratis de <b>Puter</b>.");
+  });
   Promise.all([use("db"),use("assets")]).then(function(r){
     DB=r[0];ASSETS=r[1];
     if(DB){
@@ -949,11 +1027,11 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
         var arr=[];snap.docs.forEach(function(d){var v=d.data();if(v&&v.prenda&&/^\d{4}-\d{2}$/.test(d.id)){v.mes=d.id;arr.push(v);}});
         AL.hist=arr;var cur=arr.filter(function(h){return h.mes===MKEY})[0];
         if(cur){AL.doc=cur;AL.state="ok";renderAlerta();}
-        else{AL.state="ok";renderAlerta();samplePromise.then(function(){if(!AL.doc)generarAlerta(false);});}
+        else{AL.state="ok";renderAlerta();samplePromise.then(function(){if(!AL.doc&&!(sample&&sample.__puter))generarAlerta(false);else renderAlerta();});}
       },function(){AL.state="ok";renderAlerta();});}catch(e){AL.state="ok";renderAlerta();}
     }else{
       AL.state="ok";renderAlerta();
-      samplePromise.then(function(){if(sample&&!AL.doc)generarAlerta(false);});
+      samplePromise.then(function(){if(sample&&!sample.__puter&&!AL.doc)generarAlerta(false);else renderAlerta();});
     }
     fillPhotos();
   });
@@ -978,7 +1056,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
       '<h3>'+esc(d.prenda)+'</h3><p>'+esc(d.porque)+'</p>'+
       '<div class="noti-stats"><div><b>'+Math.round(num(d.puntaje))+'</b><span>puntaje de tendencia</span></div><div><b>'+e[1]+'</b><span>cómo viene</span></div><div><b>'+esc(d.plataforma_top||"—")+'</b><span>dónde más pega</span></div><div><b>'+(num(d.precio_uy_uyu)?uyu(num(d.precio_uy_uyu)):"No llegó")+'</b><span>se vende en Uruguay</span></div></div>'+
       (d.accion?'<p class="noti-acc"><b>Qué hacer:</b> '+esc(d.accion)+'</p>':'')+
-      '<div class="noti-actions"><button class="go sm" type="button" id="alGo">Analizar esta prenda</button><a class="btn-sm" href="'+esc(SRC.tiktok[1](d.busqueda||d.prenda))+'" target="_blank" rel="noopener">Ver en TikTok ↗</a>'+(sample?'<button class="linkbtn" type="button" id="alRe">Elegir otra con la IA</button>':'')+'</div>'+
+      '<div class="noti-actions"><button class="go sm" type="button" id="alGo">Analizar esta prenda</button><a class="btn-sm" href="'+esc(SRC.tiktok[1](d.busqueda||d.prenda))+'" target="_blank" rel="noopener">Ver en TikTok ↗</a>'+(sample?'<button class="linkbtn" type="button" id="alRe">'+(ex?'Elegir la de este mes con la IA':'Elegir otra con la IA')+'</button>':'')+'</div>'+
       '</div>'+(nph?'<figure class="noti-ph"><img src="'+esc(nph.url)+'" alt="Foto de referencia: '+esc(d.prenda)+'"><figcaption>Foto de referencia · '+esc(nph.autor||"")+' · Unsplash</figcaption></figure>':'')+(hist.length?'<div class="noti-hist"><span>Meses anteriores:</span>'+hist.map(function(h){return '<button type="button" data-q="'+esc(h.busqueda||h.prenda)+'">'+esc(h.mes_label||h.mes)+' · '+esc(h.prenda)+'</button>'}).join("")+'</div>':'')+'</div>';
     $("alGo").onclick=function(){try{localStorage.setItem("ct_alerta_vista",d.mes+"|"+d.prenda)}catch(x){}$("q").value=d.busqueda||d.prenda;$("marca").value="";run($("q").value,"");};
     if($("alRe"))$("alRe").onclick=function(){generarAlerta(true);};
@@ -1043,7 +1121,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   }
   function hideLoading(){clearInterval(timer);$("loading").hidden=true;$("loading").innerHTML="";}
 
-  var ERR={not_granted:"No se dio permiso para usar Claude. Recargá y aceptá el permiso.",sampling_disabled:"Claude no está disponible para esta cuenta.",rate_limited:"Demasiadas búsquedas seguidas. Esperá un momento.",session_expired:"Tu sesión venció. Iniciá sesión de nuevo.",invalid_json:"La respuesta no se pudo leer. Probá de nuevo.",refused:"La IA no respondió esta búsqueda. Probá con otra prenda.",empty_completion:"No hubo respuesta. Probá con una prenda más concreta."};
+  var ERR={not_granted:"No se dio permiso para usar Claude. Recargá y aceptá el permiso.",sampling_disabled:"Claude no está disponible para esta cuenta.",rate_limited:"Se alcanzó el límite de búsquedas por ahora. Probá más tarde.",session_expired:"Tu sesión venció. Iniciá sesión de nuevo.",invalid_json:"La respuesta no se pudo leer. Probá de nuevo.",refused:"La IA no respondió esta búsqueda. Probá con otra prenda.",empty_completion:"No hubo respuesta. Probá con una prenda más concreta."};
   function validate(d){if(!d||!Array.isArray(d.tendencias))throw {code:"invalid_json"};d.tendencias=d.tendencias.filter(function(t){return t&&t.nombre}).slice(0,6);if(!d.tendencias.length)throw {code:"invalid_json"};return d;}
 
   function run(q,marca){
@@ -1055,7 +1133,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     note("");$("go").disabled=true;clearInterval(timer);showLoading(q+(marca?" · "+marca:""));$("results").innerHTML="";
     sample.json(prompt(q,marca),{signal:my.signal,modelTier:"default",cache:{gcTime:86400000}})
       .then(function(d){if(my!==ctl)return;STATE={data:validate(d),example:false,query:q,marca:marca,publico:S.publico};addHist(q);})
-      .catch(function(e){if(my!==ctl)return;var c=e&&e.code;if(c==="cancelled")note("Búsqueda detenida.");else if(c==="not_granted"&&sample&&sample.__api){status("off","Clave inválida");note("La clave de API no es válida o no tiene permisos. Revisala en Supuestos de importación.",true);}else{if(c==="not_granted"||c==="sampling_disabled")status("off","Sin permiso de IA");note(ERR[c]||"Hubo un problema de conexión. Probá de nuevo.",true);}})
+      .catch(function(e){if(my!==ctl)return;var c=e&&e.code;if(c==="cancelled")note("Búsqueda detenida.");else if(sample&&sample.__puter&&(c==="not_granted"||c==="rate_limited")){note(c==="not_granted"?"Para buscar hay que entrar o crear una cuenta gratis de Puter. Tocá <b>Cazar tendencias</b> de nuevo y aceptá la ventana que aparece.":"Tu cuenta de Puter llegó a su límite de uso gratis por ahora. Probá más tarde o con otra cuenta.",true);}else if(c==="not_granted"&&sample&&sample.__api){status("off","Clave inválida");note("La clave de API no es válida o no tiene permisos. Revisala en Supuestos de importación.",true);}else{if(c==="not_granted"||c==="sampling_disabled")status("off","Sin permiso de IA");note(ERR[c]||"Hubo un problema de conexión. Probá de nuevo.",true);}})
       .then(function(){if(my===ctl){hideLoading();$("go").disabled=false;render();}});
   }
   $("form").addEventListener("submit",function(e){e.preventDefault();run($("q").value,$("marca").value);});
