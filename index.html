@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Cazador de Tendencias: buscá una prenda y la IA muestra qué estilos son tendencia, cuánto cuesta importarlos y a cuánto se venden en Uruguay.">
+<title>Cazador de Tendencias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..600;1,6..96,400..500&display=swap">
+<style>
+/* Single light look on purpose: white page, blue and olive details.
+   Layout: four separated sections (Buscar, Resumen, Tendencias, Webs). Each trend is a card split into four quadrants:
+   Fotos and Cómo venderla (olive, things you do) / Números and Dónde se vio (blue, information). */
+:root{
+  --paper:#FFFFFF;
+  color-scheme:light;
+  --ink:#141B30;
+  --muted:#6F7690;
+  --line:#E2E6F1;
+  --soft:#F6F8FC;
+  --blue:#2742A0;
+  --blue-soft:#EEF1FA;
+  --olive:#646B2E;
+  --olive-soft:#F3F4EA;
+  --warn:#A0501B;
+  --warn-soft:#F8ECE3;
+  --display:'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+  --body:'Albert Sans', 'Helvetica Neue', Arial, system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:36px 80px}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+a{color:inherit}
+
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-family:var(--display);font-size:1.05rem;color:var(--blue)}
+.brand em{color:var(--olive)}
+.status{display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.dot.on{background:var(--olive)} .dot.off{background:var(--warn)}
+
+h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5.5vw,3.1rem);line-height:1.08;margin:56px 0 28px;text-wrap:balance;letter-spacing:-.01em;max-width:18ch}
+h1 i{color:var(--blue)}
+
+/* sections */
+.sec{margin-top:64px}
+.sec:first-of-type{margin-top:0}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sec-h h2{margin:0;font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--olive)}
+.sec-h h2.b{color:var(--blue)}
+.sec-h p{margin:0;font-size:.84rem;color:var(--muted)}
+.panel{border:1px solid var(--line);border-radius:16px;background:var(--paper)}
+
+/* buscar */
+.buscar{padding:22px 24px}
+form.search{display:flex;flex-direction:column;gap:12px}
+.line{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--blue);padding-bottom:8px}
+.hide{position:absolute;left:-9999px}
+#q{flex:1;min-width:0;border:0;background:transparent;font-size:1.3rem;padding:6px 0;outline:none}
+#q::placeholder,#marca::placeholder{color:var(--muted)}
+.go{border:0;background:var(--blue);color:#FFFFFF;border-radius:999px;font-weight:600;font-size:.9rem;cursor:pointer;padding:8px 18px;white-space:nowrap}
+.go:hover{background:var(--olive)}
+.go:disabled{opacity:.4;cursor:default}
+.marca-row{display:flex;align-items:center;gap:10px}
+.marca-row label{font-size:.8rem;color:var(--olive);white-space:nowrap}
+#marca{flex:1;min-width:0;border:0;border-bottom:1px solid var(--line);background:transparent;padding:4px 0;font-size:.92rem;outline:none}
+#marca:focus{border-color:var(--olive)}
+.para-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.para-row span{font-size:.8rem;color:var(--olive);margin-right:4px}
+.para-row button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 14px;font-size:.86rem;cursor:pointer}
+.para-row button:hover{border-color:var(--blue);color:var(--blue)}
+.para-row button[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#FFFFFF}
+.sug{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.sug-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sug-head span{font-size:.72rem;color:var(--olive);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 12px;font-size:.86rem;color:var(--ink);cursor:pointer}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.chip.h{border-color:var(--olive-soft);background:var(--olive-soft);color:var(--olive)}
+.linkbtn{border:0;background:none;padding:0;font-size:.85rem;color:var(--olive);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover{color:var(--blue)}
+.ajustes{margin-top:18px;padding:16px;border-radius:12px;background:var(--soft);display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.75rem;color:var(--muted)}
+.field input,.field select{border:0;border-bottom:1px solid var(--line);background:transparent;padding:4px 0;width:100%;font-variant-numeric:tabular-nums}
+.ajustes p{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
+
+.note{margin:18px 0 0;font-size:.88rem;color:var(--muted)}
+.note.warn{color:var(--warn)}
+.loading{margin-top:24px;padding:20px 24px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.loading .msg{font-family:var(--display);font-style:italic;font-size:1.15rem;color:var(--blue)}
+.loading .s{font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+
+/* resumen */
+.res-title{font-family:var(--display);font-weight:400;color:var(--blue);font-size:2.2rem;line-height:1.1;margin:0 0 16px}
+.res-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.box{border:1px solid var(--line);border-radius:14px;padding:18px 20px;min-width:0}
+.box h3{margin:0 0 8px;font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--blue)}
+.box.o{background:var(--olive-soft);border-color:transparent}
+.box.o h3{color:var(--olive)}
+.box p{margin:0;font-size:.92rem}
+.box p + p{margin-top:8px}
+.box .sm{font-size:.82rem;color:var(--muted)}
+
+/* tendencias */
+.cards{display:flex;flex-direction:column;gap:28px}
+.card{border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:20px 24px;border-bottom:1px solid var(--line)}
+.ttl{display:flex;gap:14px;align-items:baseline;min-width:0}
+.rank{font-family:var(--display);font-style:italic;color:var(--olive);font-size:1.4rem}
+.ttl h3{margin:0;font-family:var(--display);font-weight:500;font-size:1.45rem;line-height:1.15;text-wrap:balance}
+.ttl p{margin:4px 0 0;color:var(--muted);font-size:.9rem;max-width:56ch}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pill{font-size:.72rem;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.op{background:var(--olive-soft);border-color:transparent;color:var(--olive);font-weight:600}
+.score{text-align:right;flex:none}
+.score b{display:block;font-family:var(--display);font-weight:500;font-size:2.1rem;line-height:1;color:var(--blue);font-variant-numeric:tabular-nums}
+.score span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+.quads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.q{padding:20px 24px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.q:nth-child(odd){border-right:1px solid var(--line)}
+.q:nth-child(-n+2){border-bottom:1px solid var(--line)}
+.q-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.q-h h4{margin:0;font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.q.act .q-h h4{color:var(--olive)}
+.q.inf .q-h h4{color:var(--blue)}
+.q.act{background:linear-gradient(var(--olive-soft),var(--olive-soft)) top/100% 3px no-repeat}
+.q.inf{background:linear-gradient(var(--blue-soft),var(--blue-soft)) top/100% 3px no-repeat}
+
+/* fotos */
+.gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ph{position:relative;aspect-ratio:4/5;max-width:100%;border-radius:10px;overflow:hidden;background:var(--soft)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph button{position:absolute;top:6px;right:6px;border:0;background:rgba(255,255,255,.92);color:var(--ink);border-radius:999px;width:24px;height:24px;line-height:24px;font-size:.85rem;cursor:pointer;padding:0}
+.ph button:hover{color:var(--warn)}
+.ph .cr{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 5px;font-size:.66rem;line-height:1.2;color:#FFFFFF;background:linear-gradient(transparent,rgba(0,0,0,.55));text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .cr:hover{text-decoration:underline}
+.ph .refb{position:absolute;top:6px;left:6px;font-size:.62rem;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.92);color:var(--ink)}
+.sketch{border-radius:10px;overflow:hidden}
+.sketch svg{display:block;width:100%;height:auto}
+.cap{font-size:.8rem;color:var(--muted);margin:0}
+.ph-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-sm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 12px;font-size:.82rem;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn-sm:hover{border-color:var(--blue);color:var(--blue)}
+.btn-sm.up{border-color:var(--olive);color:var(--olive)}
+.btn-sm.up:hover{background:var(--olive-soft)}
+.ph-msg{font-size:.8rem;color:var(--muted)}
+.field small{color:var(--muted);font-size:.72rem;line-height:1.35}
+.paste-hint{margin:0;font-size:.8rem;color:var(--muted);background:var(--soft);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+.paste-hint b{color:var(--ink);font-weight:600}
+section.q.act[data-fk]{outline:none}
+section.q.act[data-fk].on .paste-hint,section.q.act[data-fk]:focus-visible .paste-hint{border-color:var(--olive);background:var(--olive-soft)}
+.ph-msg.err{color:var(--warn)}
+
+/* números */
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.n{background:var(--soft);border-radius:10px;padding:10px 12px}
+.n span{display:block;font-size:.72rem;color:var(--muted)}
+.n b{font-weight:500;font-size:1.1rem;font-variant-numeric:tabular-nums}
+.n.m b.bueno{color:var(--olive)} .n.m b.justo{color:var(--blue)} .n.m b.bajo{color:var(--warn)}
+.n.m em{display:block;font-style:normal;font-size:.72rem;color:var(--muted)}
+.small{font-size:.84rem;color:var(--muted);margin:0}
+
+/* dónde se vio */
+.src{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:.86rem}
+.src li{display:flex;flex-direction:column}
+.src a{color:var(--blue);font-weight:500;text-underline-offset:3px;width:fit-content}
+.src a:hover{color:var(--olive)}
+.src span{color:var(--muted)}
+.plats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding-top:10px;border-top:1px dashed var(--line)}
+.plat{text-align:center;font-size:.72rem;color:var(--muted)}
+.plat b{display:block;font-size:1rem;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.plat.t b{color:var(--blue)}
+
+/* cómo venderla */
+.sell p{margin:0;font-size:.88rem}
+.sell .lbl{display:block;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.quote{font-family:var(--display);font-style:italic;color:var(--blue);font-size:1rem}
+.sw{display:inline-flex;align-items:center;gap:6px;margin-right:12px;font-size:.84rem}
+.sw i{width:11px;height:11px;border-radius:50%;border:1px solid var(--line);display:inline-block}
+.sell{display:flex;flex-direction:column;gap:10px}
+
+.after{margin-top:18px}
+
+/* webs */
+.wgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.wcard{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;text-decoration:none;background:var(--paper);min-width:0}
+.wcard:hover{border-color:var(--blue);background:var(--blue-soft)}
+.wcard b{font-weight:600;color:var(--blue);display:flex;justify-content:space-between;gap:8px}
+.wcard b::after{content:"↗";color:var(--olive)}
+.wcard span{font-size:.8rem;color:var(--muted)}
+
+/* dónde traerla */
+.q.full{grid-column:1/-1;border-right:0!important;border-top:1px solid var(--line)}
+table.prov{width:100%;border-collapse:collapse;font-size:.86rem;min-width:720px}
+table.prov th{text-align:left;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+table.prov td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
+table.prov tr:last-child td{border-bottom:0}
+table.prov .num{text-align:right;white-space:nowrap}
+table.prov td b{font-weight:600}
+table.prov td small{display:block;color:var(--muted);font-size:.76rem;line-height:1.35;margin-top:2px}
+table.prov a{color:var(--blue);white-space:nowrap}
+table.prov tr.best td{background:var(--olive-soft)}
+.tag{display:inline-block;font-size:.66rem;font-weight:600;padding:1px 8px;border-radius:999px;margin:2px 4px 0 0;white-space:nowrap}
+.tag.cheap{background:var(--olive);color:#FFFFFF}
+.tag.try{background:var(--blue-soft);color:var(--blue)}
+.ruta{font-size:.72rem;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+
+/* prenda del mes */
+.noti{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;padding:22px 24px;border-color:var(--olive);box-shadow:0 6px 24px rgba(39,66,160,.08)}
+.noti-ic{position:relative;width:44px;height:44px;border-radius:50%;background:var(--olive-soft);color:var(--olive);display:grid;place-items:center}
+.noti-ic svg{width:22px;height:22px}
+.noti-ic i{position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:var(--blue);border:2px solid var(--paper)}
+.noti-ic.ring svg{animation:ring 1.8s ease-in-out 2}
+@keyframes ring{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(14deg)}20%,40%{transform:rotate(-14deg)}}
+@media (prefers-reduced-motion: reduce){.noti-ic.ring svg{animation:none}}
+.noti-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.8rem;color:var(--muted)}
+.noti-top .new{background:var(--blue);color:#FFFFFF;font-weight:600;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:999px}
+.noti-top .ex{background:var(--soft);color:var(--muted);font-size:.7rem;padding:2px 9px;border-radius:999px}
+.noti h3{margin:6px 0 6px;font-family:var(--display);font-weight:500;font-size:clamp(1.5rem,3.6vw,2rem);line-height:1.1;color:var(--ink);text-wrap:balance}
+.noti h3 em{color:var(--olive)}
+.noti p{margin:0;max-width:66ch}
+.noti-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.noti-stats div{background:var(--soft);border-radius:10px;padding:10px 12px;min-width:0}
+.noti-stats b{display:block;font-weight:600;font-size:1rem;color:var(--blue);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.noti-stats span{font-size:.72rem;color:var(--muted)}
+.noti-acc{margin-top:14px!important;font-size:.92rem}
+.noti-acc b{color:var(--olive)}
+.noti-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+.go.sm{font-size:.84rem;padding:7px 16px}
+.noti.has-ph{grid-template-columns:auto minmax(0,1fr) 190px}
+.noti-ph{margin:0;min-width:0}
+.noti-ph img{width:100%;aspect-ratio:4/5;max-width:100%;object-fit:cover;border-radius:12px;display:block}
+.noti-ph figcaption{font-size:.68rem;color:var(--muted);margin-top:4px}
+.noti-hist{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;border-top:1px dashed var(--line);padding-top:12px;font-size:.8rem;color:var(--muted)}
+.noti-hist button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:3px 10px;font-size:.8rem;cursor:pointer}
+.noti-hist button:hover{border-color:var(--blue);color:var(--blue)}
+.noti-wait{display:flex;gap:12px;align-items:center;padding:22px 24px;color:var(--muted)}
+.noti-wait b{font-family:var(--display);font-style:italic;font-weight:400;color:var(--blue);font-size:1.1rem}
+
+/* análisis */
+.an{padding:24px 26px}
+.an-t{font-family:var(--display);font-weight:400;font-size:clamp(1.9rem,4.5vw,2.6rem);color:var(--blue);margin:0;line-height:1.1;text-wrap:balance}
+.an-v{margin:10px 0 0;max-width:68ch;font-size:1rem}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.kpi{border-radius:14px;background:var(--soft);padding:16px 18px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.kpi b{font-family:var(--display);font-weight:500;font-size:2rem;line-height:1.05;color:var(--blue);font-variant-numeric:tabular-nums}
+.kpi span{font-size:.84rem;color:var(--muted)}
+.kpi.main{background:var(--olive)}
+.kpi.main b{color:#FFFFFF;font-family:var(--body);font-weight:600;font-size:1.3rem;line-height:1.2}
+.kpi.main span{color:#E7EAD2}
+.fil{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:18px}
+.fil > span{font-size:.82rem;color:var(--muted);margin-right:4px}
+.fchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.84rem}
+.fchip::before{content:"✓";color:var(--olive);font-weight:700}
+.an .res-grid{margin-top:22px}
+
+/* radiografía */
+.rx{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.rx-c{border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.rx-c h3{margin:0 0 6px;font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--blue)}
+.rx-i{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.rx-i:first-of-type{border-top:0}
+.rx-i b{font-weight:600;font-size:.95rem}
+.rx-i p{grid-column:1;margin:0;font-size:.84rem;color:var(--muted)}
+.st{grid-row:1;grid-column:2;align-self:start;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.st.f{background:var(--olive-soft);color:var(--olive)}
+.st.s{background:var(--blue-soft);color:var(--blue)}
+.st.b{border:1px solid var(--line);color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:14px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+
+/* shein */
+.tbl-wrap{overflow-x:auto}
+table.sh{width:100%;border-collapse:collapse;font-size:.9rem;min-width:680px}
+table.sh th{text-align:left;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line)}
+table.sh td{padding:12px 16px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle}
+table.sh tr:last-child td{border-bottom:0}
+table.sh .num{text-align:right;white-space:nowrap}
+table.sh td.nm{font-weight:500}
+table.sh .sm{font-size:.72rem;color:var(--muted)}
+table.sh a{color:var(--blue);font-size:.84rem;white-space:nowrap}
+.vd{font-size:.76rem;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
+.vd.bueno{background:var(--olive-soft);color:var(--olive)}
+.vd.justo{background:var(--blue-soft);color:var(--blue)}
+.vd.bajo{background:var(--warn-soft);color:var(--warn)}
+.sh-note{margin:12px 0 0;font-size:.8rem;color:var(--muted);max-width:86ch}
+.cf{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cf span{font-size:.72rem;padding:2px 9px;border-radius:999px;background:var(--olive-soft);color:var(--olive)}
+.cf span.no{background:var(--warn-soft);color:var(--warn)}
+.cf span.nd{background:var(--soft);color:var(--muted)}
+.shline{border-top:1px dashed var(--line);padding-top:10px;font-size:.86rem;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.shline a{color:var(--blue)}
+
+footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-size:.75rem;color:var(--muted)}
+
+@media (max-width:820px){
+  .res-grid{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .quads{grid-template-columns:1fr}
+  .q:nth-child(odd){border-right:0}
+  .q{border-bottom:1px solid var(--line)}
+  .q:last-child{border-bottom:0}
+  .q.full{border-top:0}
+  .q.full .tbl-wrap{overflow:visible}
+  table.prov{min-width:0}
+  table.prov thead{display:none}
+  table.prov tr{display:block;padding:12px 10px;border-bottom:1px solid var(--line)}
+  table.prov tr:last-child{border-bottom:0}
+  table.prov td{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border:0;text-align:right}
+  table.prov td.lg{display:block;text-align:left;padding-bottom:6px}
+  table.prov td[data-l]::before{content:attr(data-l);color:var(--muted);font-size:.78rem;text-align:left}
+  table.prov td.lk{justify-content:flex-end;padding-top:6px}
+  .buscar,.card-h,.q,.an{padding-left:18px;padding-right:18px}
+  .rx{grid-template-columns:1fr}
+  .noti,.noti.has-ph{grid-template-columns:1fr;padding-left:18px;padding-right:18px}
+  .noti-ph{max-width:220px}
+  .noti-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card-h{flex-direction:column}
+  .score{text-align:left;display:flex;align-items:baseline;gap:8px}
+  .line{flex-wrap:wrap}
+  .go{width:100%}
+  h1{margin-top:40px}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Cazador de <em>Tendencias</em></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Conectando…</span></div>
+  </div>
+
+  <h1>¿Qué prenda conviene <i>traer</i> a Uruguay?</h1>
+
+  <section class="sec" id="alertaSec">
+    <div class="sec-h"><h2>Prenda del mes</h2><p>Cambia cada mes según las tendencias</p></div>
+    <div id="alerta"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><h2>Buscar</h2><p>Prenda, marca opcional y supuestos</p></div>
+    <div class="panel buscar">
+      <form class="search" id="form" autocomplete="off">
+        <div class="line">
+          <label class="hide" for="q">Prenda a buscar</label>
+          <input id="q" name="q" placeholder="Buscá una prenda" value="bermuda">
+          <button class="go" id="go" type="submit">Cazar tendencias</button>
+        </div>
+        <div class="marca-row">
+          <label for="marca">Marca</label>
+          <input id="marca" name="marca" placeholder="opcional, por ejemplo Levi's o Nike">
+        </div>
+        <div class="para-row" role="group" aria-label="Para quién es la prenda">
+          <span>Para</span>
+          <button type="button" data-p="unisex">Todos</button>
+          <button type="button" data-p="mujer">Mujer</button>
+          <button type="button" data-p="hombre">Hombre</button>
+          <button type="button" data-p="ninos">Niños</button>
+        </div>
+      </form>
+      <div class="sug">
+        <div class="sug-head"><span>Probá con</span><button class="linkbtn" type="button" id="ajBtn" aria-expanded="false">Supuestos de importación</button></div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="ajustes" id="ajustes" hidden>
+        <div class="field"><label for="publico">Público</label>
+          <select id="publico"><option value="unisex">Todos</option><option value="mujer">Mujer</option><option value="hombre">Hombre</option><option value="ninos">Niños</option></select></div>
+        <div class="field"><label for="tc">Dólar (UYU)</label><input id="tc" type="number" step="0.1" min="1" value="40"></div>
+        <div class="field"><label for="envio">Envío por prenda (US$)</label><input id="envio" type="number" step="0.5" min="0" value="8"></div>
+        <div class="field"><label for="modo">Cómo entra</label>
+          <select id="modo"><option value="pu">Prestación única · 60%</option><option value="iva">Franquicia · IVA 22%</option><option value="usa">Franquicia desde EE.UU. · 0%</option></select></div>
+        <div class="field"><label for="pct">Impuestos (%)</label><input id="pct" type="number" step="1" min="0" value="60"></div>
+        <div class="field"><label for="envShein">Envío Shein al cliente (US$)</label><input id="envShein" type="number" step="0.5" min="0" value="2"></div>
+        <div class="field"><label for="fleteFormal">Importación formal: flete por prenda (US$)</label><input id="fleteFormal" type="number" step="0.5" min="0" value="1.5"></div>
+        <div class="field"><label for="impFormal">Importación formal: impuestos y gastos (%)</label><input id="impFormal" type="number" step="1" min="0" value="70"></div>
+        <div class="field"><label for="fleteMerc">Mercosur: flete por prenda (US$)</label><input id="fleteMerc" type="number" step="0.5" min="0" value="2"></div>
+        <div class="field"><label for="impMerc">Mercosur: impuestos y gastos (%)</label><input id="impMerc" type="number" step="1" min="0" value="30"></div>
+        <div class="field api-only" hidden><label for="apiKey">Clave de API de Claude</label><input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."><small>Solo se guarda en este navegador. No la subas al repositorio.</small></div>
+        <div class="field api-only" hidden><label for="apiModel">Modelo de Claude</label><input id="apiModel" type="text" value="claude-sonnet-5-5"><small>Podés cambiarlo por otro modelo de la API.</small></div>
+        <div class="field api-only" hidden><label for="apiSave">Activar IA</label><button class="go sm" type="button" id="apiSave">Guardar clave</button><small id="apiMsg"></small></div>
+        <p>Desde el 1/5/2026 la franquicia es para uso personal: 3 envíos y US$ 800 por año, con IVA salvo desde EE.UU. Para revender se usa la prestación única (60%, mínimo US$ 20 por envío) o un despachante.</p>
+      </div>
+      <div id="note"></div>
+    </div>
+    <div id="loading" class="panel" hidden></div>
+  </section>
+
+  <div id="results"></div>
+
+  <section class="sec">
+    <div class="sec-h"><h2 class="b">Ver en las webs</h2><p>Se abren en otra pestaña con la búsqueda hecha</p></div>
+    <div class="wgrid" id="webs"></div>
+  </section>
+
+  <footer>Puntajes, precios y fuentes los estima la IA con lo que sabe; no son datos en tiempo real. Las fotos son las que sube el grupo; los bocetos solo muestran cómo armar la foto. Verificá todo con los enlaces. ORT Uruguay · Negocios Digitales · 2026.</footer>
+</div>
+
+<script src="data/biblioteca.js"></script>
+<script>
+(function(){
+  var PLATS=[["tiktok","TikTok"],["instagram","Instagram"],["pinterest","Pinterest"],["amazon","Amazon"]];
+  var MODE_PCT={pu:60,iva:22,usa:0};
+  var SUGERIDAS=["camisas mujer","bermuda hombre","jean baggy","vestido","musculosa","remera oversize","camisa de lino","pollera","short de baño","campera","buzo","conjunto deportivo","zapatillas","sandalias","bikini","gorro","lentes de sol"];
+  var MSGS=["Revisando TikTok e Instagram","Mirando Pinterest","Buscando los más vendidos de Amazon","Comparando con Uruguay","Pensando cómo presentarla","Calculando costos"];
+
+  var EXAMPLE={
+    prenda:"Bermuda",
+    resumen:"La bermuda se alarga y se ensancha. TikTok empuja los cortes baggy y Pinterest el lino y lo sastrero.",
+    temporada:"Pico de venta en diciembre y enero. Conviene tener stock antes de fin de noviembre.",
+    oportunidad:"Bermuda sastrera de tiro alto: crece en Pinterest e Instagram y casi no se consigue en Uruguay.",
+    marcas:{internacionales:["Carhartt","Dickies","Levi's","Zara","H&M"],uruguay:["Cadenas como Zara y Renner","Marcas locales de Instagram"]},
+    tendencias:[
+      {nombre:"Bermuda cargo baggy",descripcion:"Ancha, por debajo de la rodilla, con bolsillos laterales.",puntaje:88,plataformas:{tiktok:92,instagram:80,pinterest:65,amazon:85},fuentes:[{plataforma:"tiktok",busqueda:"baggy cargo shorts outfit",que_se_ve:"Videos de outfits de verano unisex"},{plataforma:"amazon",busqueda:"men's cargo shorts",que_se_ve:"Entre los más vendidos de shorts de hombre"},{plataforma:"mercadolibre",busqueda:"bermuda cargo",que_se_ve:"Muchos vendedores en Uruguay"}],marcas:["Carhartt","Dickies"],colores:[{nombre:"Caqui",hex:"#B9A57E"},{nombre:"Negro lavado",hex:"#3A3A3C"},{nombre:"Verde militar",hex:"#5F6A45"}],precio_origen_usd:{min:14,max:30},fuente_origen:"Amazon / Shein",precio_uy_uyu:{min:1200,max:2400},presencia_uy:"alta",publico:"Varones y unisex de 16 a 28",presentacion:{foto:"Cuerpo entero en exterior urbano, con zapatillas de skate.",fondo:{nombre:"Gris hormigón",hex:"#D9D9D6"},props:["zapatillas de skate","medias blancas"],copy:"El largo que se usa este verano.",hook:"3 formas de usar la cargo sin parecer de 2005"},riesgo:"Mucha competencia local.",confianza:"alta"},
+      {nombre:"Jorts",descripcion:"Bermuda de jean ancha y larga, lavados claros.",puntaje:84,plataformas:{tiktok:90,instagram:82,pinterest:74,amazon:70},fuentes:[{plataforma:"tiktok",busqueda:"jorts outfit",que_se_ve:"Videos de thrift flip y festivales"},{plataforma:"instagram",busqueda:"jorts",que_se_ve:"Looks de streetwear"},{plataforma:"pinterest",busqueda:"jorts outfit summer",que_se_ve:"Tableros de looks vintage"}],marcas:["Levi's","Zara"],colores:[{nombre:"Azul medio",hex:"#5B7BA8"},{nombre:"Celeste gastado",hex:"#9DB4CF"},{nombre:"Negro",hex:"#2B2B2E"}],precio_origen_usd:{min:15,max:28},fuente_origen:"Shein / Amazon",precio_uy_uyu:{min:1400,max:2800},presencia_uy:"media",publico:"Unisex de 16 a 30",presentacion:{foto:"Flat lay sobre fondo blanco, ruedo a la vista.",fondo:{nombre:"Blanco",hex:"#F4F3EF"},props:["remera básica","cinturón"],copy:"El jean de siempre, cortado como ahora.",hook:"¿Cuánto creés que salió este jort?"},riesgo:"Sensible al talle.",confianza:"media"},
+      {nombre:"Bermuda de lino con cordón",descripcion:"Lino liviano, cintura con cordón, caída suelta.",puntaje:76,plataformas:{tiktok:62,instagram:78,pinterest:90,amazon:72},fuentes:[{plataforma:"pinterest",busqueda:"linen shorts coastal outfit",que_se_ve:"Tableros de estilo costero"},{plataforma:"amazon",busqueda:"linen drawstring shorts",que_se_ve:"Buen volumen de reseñas"}],marcas:["H&M","Mango"],colores:[{nombre:"Arena",hex:"#D8CBB0"},{nombre:"Hueso",hex:"#EFEBE2"},{nombre:"Oliva",hex:"#7A7F4E"}],precio_origen_usd:{min:12,max:25},fuente_origen:"Amazon / AliExpress",precio_uy_uyu:{min:1500,max:2600},presencia_uy:"baja",publico:"22 a 40 años",presentacion:{foto:"Luz de tarde en la rambla, prenda en movimiento.",fondo:{nombre:"Arena de playa",hex:"#E9DFCB"},props:["sombrero de paja","alpargatas"],copy:"Fresca y prolija. Para el verano uruguayo.",hook:"Lo único que vas a querer usar en enero"},riesgo:"Se arruga; mostrarla en uso.",confianza:"media"},
+      {nombre:"Bermuda sastrera de tiro alto",descripcion:"Corte de pantalón de vestir llevado a la rodilla.",puntaje:71,plataformas:{tiktok:66,instagram:80,pinterest:84,amazon:58},fuentes:[{plataforma:"instagram",busqueda:"tailoredshorts",que_se_ve:"Looks de oficina de verano"},{plataforma:"pinterest",busqueda:"tailored bermuda shorts outfit",que_se_ve:"Tableros de quiet luxury"}],marcas:["Zara","Mango"],colores:[{nombre:"Gris piedra",hex:"#A7A39B"},{nombre:"Chocolate",hex:"#5A4033"},{nombre:"Blanco",hex:"#F2F0EB"}],precio_origen_usd:{min:18,max:35},fuente_origen:"Shein / Amazon",precio_uy_uyu:null,presencia_uy:"no llegó",publico:"Mujeres de 24 a 40",presentacion:{foto:"Con blazer y sandalias, fondo liso claro.",fondo:{nombre:"Crema",hex:"#EEE8DC"},props:["blazer","sandalias"],copy:"De la oficina al after en el mismo look.",hook:"El conjunto de oficina para 30 grados"},riesgo:"Nicho chico; empezar con pocas unidades.",confianza:"baja"}
+    ]
+  };
+
+  // extra example fields: analysis header, radiography, Shein and filters
+  EXAMPLE.temporada_label="Verano 2026–2027";
+  EXAMPLE.veredicto="Este verano la bermuda larga y ancha es la apuesta más segura. Los jorts y el lino pasan todos los filtros; la sastrera es linda, pero importada por courier no le gana a Shein.";
+  EXAMPLE.oportunidad="Jorts: es lo que más crece en TikTok, en Uruguay todavía hay poca oferta buena y el precio compite con Shein.";
+  EXAMPLE.mes_venta="Dic.";
+  EXAMPLE.radiografia={
+    cortes:[{nombre:"Larga a la rodilla",detalle:"El largo que se impone este verano.",estado:"fuerte"},{nombre:"Baggy, de pierna ancha",detalle:"Calce suelto, estética skater.",estado:"fuerte"},{nombre:"Sastrera de tiro alto",detalle:"Para looks de oficina con calor.",estado:"subida"},{nombre:"Corta y ajustada",detalle:"Sigue, pero cada vez se ve menos.",estado:"bajando"}],
+    estilos:[{nombre:"Skater y streetwear",detalle:"TikTok la empuja todo el tiempo.",estado:"fuerte"},{nombre:"Costero relajado",detalle:"Lino, tonos arena, de la playa a tomar algo.",estado:"subida"},{nombre:"Quiet luxury",detalle:"Sastrería en colores neutros.",estado:"subida"}],
+    colores:[{nombre:"Neutros (arena, caqui, crudo)",detalle:"Fáciles de vender y de combinar.",estado:"fuerte"},{nombre:"Denim lavado claro",detalle:"Look vintage.",estado:"fuerte"},{nombre:"Verde militar",detalle:"Sobre todo en cargo.",estado:"subida"},{nombre:"Estampados tropicales",detalle:"Muy visto en temporadas anteriores.",estado:"bajando"}],
+    telas:[{nombre:"Denim rígido",detalle:"Para jorts.",estado:"fuerte"},{nombre:"Gabardina y ripstop",detalle:"Para la cargo.",estado:"fuerte"},{nombre:"Lino y mezclas de lino",detalle:"Frescas para el calor húmedo.",estado:"subida"}]
+  };
+  var EXX={
+    "Bermuda cargo baggy":{shein_usd:17,shein_busqueda:"men cargo shorts baggy",filtros:{tendencia:true,uruguay:true,hueco:false}},
+    "Jorts":{shein_usd:16,shein_busqueda:"jorts denim shorts",filtros:{tendencia:true,uruguay:true,hueco:true}},
+    "Bermuda de lino con cordón":{shein_usd:16,shein_busqueda:"linen drawstring shorts",filtros:{tendencia:true,uruguay:true,hueco:true}},
+    "Bermuda sastrera de tiro alto":{shein_usd:18,shein_busqueda:"tailored bermuda shorts women",filtros:{tendencia:true,uruguay:true,hueco:true}}
+  };
+  var PROVX={
+    "Bermuda cargo baggy":[{canal:"aliexpress",precio_usd:12,minimo:1,dias:"15-30",nota:"Bueno para probar talles y calidad antes de comprar en cantidad.",busqueda:"baggy cargo shorts men"},{canal:"alibaba",precio_usd:6.5,minimo:100,dias:"30-45",nota:"Fábricas que aceptan tu logo; pedí muestra primero.",busqueda:"cargo shorts men wholesale"},{canal:"brasil",precio_usd:10,minimo:12,dias:"7-15",nota:"Sin arancel con certificado de origen Mercosur.",busqueda:"atacado bermuda cargo masculina"},{canal:"local",precio_usd:14,minimo:6,dias:"Inmediato",nota:"Sin importar: menos margen, cero espera.",busqueda:"bermuda cargo por mayor"},{canal:"shein",precio_usd:17,minimo:1,dias:"10-20",nota:"Sirve como referencia de precio, no para revender.",busqueda:"men cargo shorts baggy"}],
+    "Jorts":[{canal:"aliexpress",precio_usd:11,minimo:1,dias:"15-30",nota:"Muchos lavados distintos; revisá las fotos de reseñas.",busqueda:"jorts denim shorts"},{canal:"alibaba",precio_usd:5.5,minimo:50,dias:"30-45",nota:"Pedido mínimo accesible para empezar.",busqueda:"denim jorts wholesale"},{canal:"1688",precio_usd:3.8,minimo:30,dias:"35-50",nota:"El más barato, pero necesitás un agente de compras en China.",busqueda:"jorts denim shorts"},{canal:"brasil",precio_usd:9,minimo:12,dias:"7-15",nota:"El jean brasileño tiene buena fama de calce.",busqueda:"atacado bermuda jeans"},{canal:"shein",precio_usd:16,minimo:1,dias:"10-20",nota:"Referencia de precio.",busqueda:"jorts denim shorts"}],
+    "Bermuda de lino con cordón":[{canal:"aliexpress",precio_usd:10,minimo:1,dias:"15-30",nota:"Pedí composición: muchos son mezcla con viscosa.",busqueda:"linen drawstring shorts"},{canal:"alibaba",precio_usd:6,minimo:100,dias:"30-45",nota:"Lino real con certificado sube el precio.",busqueda:"linen shorts wholesale"},{canal:"brasil",precio_usd:11,minimo:10,dias:"7-15",nota:"Buen lino y llega rápido.",busqueda:"atacado bermuda linho"},{canal:"local",precio_usd:13,minimo:6,dias:"Inmediato",nota:"Para reponer rápido en temporada.",busqueda:"bermuda lino por mayor"},{canal:"amazon",precio_usd:22,minimo:1,dias:"7-12",nota:"Desde EE.UU.: más caro, pero rápido y confiable.",busqueda:"linen drawstring shorts"}],
+    "Bermuda sastrera de tiro alto":[{canal:"aliexpress",precio_usd:13,minimo:1,dias:"15-30",nota:"Calidad muy variable en sastrería.",busqueda:"tailored bermuda shorts women"},{canal:"alibaba",precio_usd:7.5,minimo:60,dias:"30-45",nota:"Pedí muestra: la caída de la tela es clave.",busqueda:"tailored shorts women wholesale"},{canal:"1688",precio_usd:5,minimo:30,dias:"35-50",nota:"Más barato, con agente de compras.",busqueda:"tailored shorts women"},{canal:"temu",precio_usd:12,minimo:1,dias:"10-20",nota:"Referencia de precio bajo.",busqueda:"tailored bermuda shorts women"},{canal:"shein",precio_usd:18,minimo:1,dias:"10-20",nota:"Referencia de precio.",busqueda:"tailored bermuda shorts women"}]
+  };
+  EXAMPLE.tendencias.forEach(function(t){var x=EXX[t.nombre];if(x)for(var k in x)t[k]=x[k];if(PROVX[t.nombre])t.proveedores=PROVX[t.nombre];});
+
+  var $=function(id){return document.getElementById(id)};
+  var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+  var num=function(v,d){var n=Number(v);return isFinite(n)?n:(d===undefined?0:d)};
+  var uyu=function(n){return "$ "+Math.round(n).toLocaleString("es-UY")};
+  var usd=function(n){return "US$ "+Math.round(n).toLocaleString("es-UY")};
+  var hex=function(h,f){return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(h||"")?h:f};
+  var slug=function(s){return String(s||"").toLowerCase().replace(/[^a-z0-9áéíóúñü]+/g,"-").replace(/^-+|-+$/g,"")};
+  var norm=function(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,50)};
+
+  // settings
+  var S={publico:"unisex",tc:40,envio:8,modo:"pu",pct:60,envShein:2,fleteFormal:1.5,impFormal:70,fleteMerc:2,impMerc:30};
+  try{var sv=JSON.parse(localStorage.getItem("ct_settings")||"null");if(sv)for(var k in S)if(sv[k]!==undefined)S[k]=sv[k];}catch(e){}
+  function saveS(){try{localStorage.setItem("ct_settings",JSON.stringify(S))}catch(e){}}
+  $("publico").value=S.publico;$("tc").value=S.tc;$("envio").value=S.envio;$("modo").value=S.modo;$("pct").value=S.pct;$("envShein").value=S.envShein;
+  ["fleteFormal","impFormal","fleteMerc","impMerc"].forEach(function(id){$(id).value=S[id];});
+  ["tc","envio","pct","envShein","fleteFormal","impFormal","fleteMerc","impMerc"].forEach(function(id){$(id).addEventListener("input",function(){S[id]=num($(id).value,S[id]);saveS();render();});});
+  $("modo").addEventListener("change",function(){S.modo=$("modo").value;S.pct=MODE_PCT[S.modo];$("pct").value=S.pct;saveS();render();});
+  $("publico").addEventListener("change",function(){setPublico($("publico").value);});
+  var PUB={unisex:"todos (unisex)",mujer:"mujer",hombre:"hombre",ninos:"niños"};
+  var PUB_EN={mujer:"women",hombre:"men",ninos:"kids"};
+  function setPublico(p){
+    if(!PUB[p])p="unisex";S.publico=p;saveS();$("publico").value=p;
+    var bs=document.querySelectorAll(".para-row button");
+    for(var i=0;i<bs.length;i++)bs[i].setAttribute("aria-pressed",String(bs[i].dataset.p===p));
+  }
+  document.querySelector(".para-row").addEventListener("click",function(e){var b=e.target.closest("button[data-p]");if(b)setPublico(b.dataset.p);});
+  // reads who the garment is for from the search text ("camisas mujer", "bermuda hombre", "buzo niños")
+  function detectPublico(q){
+    var t=" "+String(q||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")+" ";
+    if(/[^a-z](mujer(es)?|dama(s)?|femenin[oa]s?|chica(s)?|nena(s)?|women|woman|womens|ladies|para ella)[^a-z]/.test(t))return "mujer";
+    if(/[^a-z](hombre(s)?|varon(es)?|caballero(s)?|masculin[oa]s?|chico(s)?|men|man|mens|para el)[^a-z]/.test(t))return "hombre";
+    if(/[^a-z](nino(s)?|nina(s)?|infantil(es)?|bebe(s)?|kids?|chicos chicos)[^a-z]/.test(t))return "ninos";
+    return null;
+  }
+  setPublico(S.publico);
+  if(!hasClaude){
+    var apiF=document.querySelectorAll(".api-only");for(var ai=0;ai<apiF.length;ai++)apiF[ai].hidden=false;
+    try{$("apiKey").value=localStorage.getItem("ct_api_key")||"";$("apiModel").value=localStorage.getItem("ct_api_model")||"claude-sonnet-5-5";}catch(e){}
+    $("apiSave").addEventListener("click",function(){
+      try{localStorage.setItem("ct_api_key",$("apiKey").value.trim());localStorage.setItem("ct_api_model",$("apiModel").value.trim()||"claude-sonnet-5-5");$("apiMsg").textContent="Guardada. Recargando…";setTimeout(function(){location.reload()},500);}
+      catch(e){$("apiMsg").textContent="Este navegador no deja guardar la clave.";}
+    });
+  }
+  $("ajBtn").addEventListener("click",function(){var a=$("ajustes");a.hidden=!a.hidden;this.setAttribute("aria-expanded",String(!a.hidden));});
+
+  // chips
+  var hist=[];try{hist=JSON.parse(localStorage.getItem("ct_hist")||"[]")||[]}catch(e){}
+  function addHist(q){hist=[q].concat(hist.filter(function(h){return h.toLowerCase()!==q.toLowerCase()})).slice(0,4);try{localStorage.setItem("ct_hist",JSON.stringify(hist))}catch(e){}chips();}
+  function chips(){
+    var low=hist.map(function(h){return h.toLowerCase()});
+    $("chips").innerHTML=hist.map(function(h){return '<button type="button" class="chip h" data-q="'+esc(h)+'" title="Buscaste">'+esc(h)+'</button>'}).join("")+
+      SUGERIDAS.filter(function(s){return low.indexOf(s)<0}).map(function(h){return '<button type="button" class="chip" data-q="'+esc(h)+'">'+esc(h)+'</button>'}).join("");
+  }
+  $("chips").addEventListener("click",function(e){var b=e.target.closest(".chip");if(!b)return;$("q").value=b.dataset.q;run(b.dataset.q,$("marca").value);});
+
+  function calc(t){
+    var o=t.precio_origen_usd||{},oMid=(num(o.min)+num(o.max||o.min))/2;
+    var costoUYU=(oMid+num(S.envio))*(1+num(S.pct)/100)*num(S.tc,40);
+    var u=t.precio_uy_uyu,hasUY=!!(u&&num(u.min)>0);
+    var uMin=hasUY?num(u.min):0,uMax=hasUY?num(u.max||u.min):0,uMid=(uMin+uMax)/2;
+    var c={oMid:oMid,costoUYU:costoUYU,hasUY:hasUY,uMin:uMin,uMax:uMax,margen:hasUY?(uMid-costoUYU)/uMid:null,sugerido:Math.ceil(costoUYU*2/10)*10,shein:null};
+    var sh=num(t.shein_usd,0);
+    if(sh>0){
+      var sUYU=(sh+num(S.envShein))*(1+IVA_SHEIN)*num(S.tc,40),tu=hasUY?uMid:c.sugerido,r=tu/sUYU;
+      c.shein={usd:sh,uyu:sUYU,tu:tu,ratio:r,ok:r<=SHEIN_MAX,cls:r<=1.3?"bueno":(r<=SHEIN_MAX?"justo":"bajo"),v:r<=1.3?"Le ganás":(r<=SHEIN_MAX?"Parejo: ganás por rapidez y talle":"Shein es mucho más barato")};
+    }
+    return c;
+  }
+  var IVA_SHEIN=0.22,SHEIN_MAX=2.5;
+  var ESTADO={fuerte:["f","Fuerte"],subida:["s","En subida"],bajando:["b","Bajando"]};
+  function filtros(t,c){
+    var f=t.filtros||{},pres=String(t.presencia_uy||"").toLowerCase();
+    return [
+      {l:"Tendencia, no moda pasajera",s:"Tendencia",ok:f.tendencia!==false},
+      {l:"¿Sirve para Uruguay?",s:"Sirve en UY",ok:f.uruguay!==false},
+      {l:"¿Hay lugar acá?",s:"Hay lugar acá",ok:typeof f.hueco==="boolean"?f.hueco:pres!=="alta"},
+      {l:"¿Le gana a Shein?",s:"Le gana a Shein",ok:c.shein?c.shein.ok:null}
+    ];
+  }
+  function sheinUrl(t){return SRC.shein[1](t.shein_busqueda||t.nombre);}
+
+  // ---------- proveedores: where the importer can buy ----------
+  var usdx=function(n){return "US$ "+(Math.round(num(n)*10)/10).toLocaleString("es-UY")};
+  var gsearch=function(q){return "https://www.google.com/search?q="+encodeURIComponent(q)};
+  var CANAL={
+    aliexpress:{n:"AliExpress",t:"Minorista · China",ruta:"courier",url:function(q){return "https://www.aliexpress.com/w/wholesale-"+encodeURIComponent(String(q).trim().replace(/\s+/g,"-"))+".html"}},
+    alibaba:{n:"Alibaba",t:"Mayorista · fábricas China",ruta:"formal",url:function(q){return "https://www.alibaba.com/trade/search?SearchText="+encodeURIComponent(q)}},
+    "1688":{n:"1688",t:"Mayorista China · con agente",ruta:"formal",url:function(q){return gsearch("1688.com "+q)}},
+    shein:{n:"Shein",t:"Minorista · referencia",ruta:"courier",url:function(q){return "https://us.shein.com/pdsearch/"+encodeURIComponent(q)+"/"}},
+    temu:{n:"Temu",t:"Minorista · China",ruta:"courier",url:function(q){return "https://www.temu.com/search_result.html?search_key="+encodeURIComponent(q)}},
+    amazon:{n:"Amazon EE.UU.",t:"Minorista · EE.UU.",ruta:"courier",url:function(q){return "https://www.amazon.com/s?k="+encodeURIComponent(q)}},
+    brasil:{n:"Mayoristas de Brasil",t:"Mayorista · Brás, São Paulo",ruta:"mercosur",url:function(q){return gsearch(q+" Brás São Paulo")}},
+    local:{n:"Mayoristas en Uruguay",t:"Mayorista local",ruta:"local",url:function(q){return "https://listado.mercadolibre.com.uy/"+encodeURIComponent(slug(q))}}
+  };
+  var RUTA={courier:"Courier",formal:"Importación formal",mercosur:"Mercosur",local:"Sin importar"};
+  function canalKey(c){c=String(c||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(c.indexOf("ali")===0&&c.indexOf("baba")>0)return "alibaba";if(c.indexOf("aliexpress")>=0)return "aliexpress";if(c.indexOf("1688")>=0)return "1688";if(c.indexOf("brasil")>=0||c.indexOf("brazil")>=0||c.indexOf("bras")>=0)return "brasil";if(c.indexOf("local")>=0||c.indexOf("uruguay")>=0)return "local";return CANAL[c]?c:null;}
+  function puesto(p,ruta){
+    p=num(p);
+    if(ruta==="formal")return (p+num(S.fleteFormal))*(1+num(S.impFormal)/100);
+    if(ruta==="mercosur")return (p+num(S.fleteMerc))*(1+num(S.impMerc)/100);
+    if(ruta==="local")return p;
+    return (p+num(S.envio))*(1+num(S.pct)/100);
+  }
+  function proveedores(t){
+    var rows=(t.proveedores||[]).map(function(x){var k=canalKey(x&&x.canal);if(!k||!(num(x.precio_usd)>0))return null;var C=CANAL[k];var u=puesto(x.precio_usd,C.ruta);return {k:k,C:C,p:num(x.precio_usd),min:Math.max(1,Math.round(num(x.minimo,1))),dias:String(x.dias||"").slice(0,20),nota:String(x.nota||"").slice(0,160),q:x.busqueda||t.nombre,usd:u,uyu:u*num(S.tc,40)}}).filter(Boolean).slice(0,7);
+    if(!rows.length)return null;
+    rows.sort(function(a,b){return a.uyu-b.uyu});
+    var cheap=rows.filter(function(r){return r.k!=="shein"})[0]||rows[0];
+    var tryR=rows.filter(function(r){return r.min<=3&&r.k!=="shein"}).sort(function(a,b){return a.uyu-b.uyu})[0];
+    return {rows:rows,cheap:cheap,tryR:tryR};
+  }
+  function provSection(t){
+    var P=proveedores(t),q0=t.nombre;
+    if(!P)return '<section class="q act full"><div class="q-h"><h4>Dónde traerla</h4></div><p class="small">La IA no devolvió proveedores para esta prenda. Buscala en <a href="'+esc(CANAL.aliexpress.url(q0))+'" target="_blank" rel="noopener">AliExpress</a> o <a href="'+esc(CANAL.alibaba.url(q0))+'" target="_blank" rel="noopener">Alibaba</a>.</p></section>';
+    return '<section class="q act full"><div class="q-h"><h4>Dónde traerla</h4><span class="small">Ordenado por costo puesto en Uruguay</span></div>'+
+      '<div class="tbl-wrap"><table class="prov"><thead><tr><th>Lugar</th><th>Cómo entra</th><th class="num">Precio x unidad</th><th class="num">Pedido mínimo</th><th>Llega en</th><th class="num">Puesta en UY</th><th></th></tr></thead><tbody>'+
+      P.rows.map(function(r){var best=r===P.cheap;return '<tr'+(best?' class="best"':'')+'><td class="lg"><b>'+r.C.n+'</b><small>'+r.C.t+'</small>'+(best?'<span class="tag cheap">Más barato</span>':'')+(r===P.tryR?'<span class="tag try">Para probar</span>':'')+(r.nota?'<small>'+esc(r.nota)+'</small>':'')+'</td><td data-l="Cómo entra"><span class="ruta">'+RUTA[r.C.ruta]+'</span></td><td class="num" data-l="Precio x unidad">'+usdx(r.p)+'</td><td class="num" data-l="Pedido mínimo">'+(r.min===1?'1 unidad':r.min+' u.')+'</td><td data-l="Llega en">'+esc(r.dias||"—")+'</td><td class="num" data-l="Puesta en UY"><b>'+uyu(r.uyu)+'</b></td><td class="lk"><a href="'+esc(r.C.url(r.q))+'" target="_blank" rel="noopener">Buscar ↗</a></td></tr>'}).join("")+
+      '</tbody></table></div>'+
+      '<p class="small">Puesta en UY por prenda. Courier: envío '+usdx(S.envio)+' + '+S.pct+'%. Importación formal: flete '+usdx(S.fleteFormal)+' + '+S.impFormal+'% de aranceles, tasas, IVA y despachante. Mercosur: flete '+usdx(S.fleteMerc)+' + '+S.impMerc+'% (sin arancel con certificado de origen). Los porcentajes son estimados y se ajustan en Supuestos de importación: confirmalos con un despachante.</p>'+
+      '</section>';
+  }
+
+  // sketches (fallback when no real photo yet)
+  var SHAPES={
+    shorts:{y0:18,y1:76,d:"M22 18 H78 L86 76 H56 L50 44 L44 76 H14 Z",x:"M22 26 H78 M50 26 V44 M30 40 L36 56 M70 40 L64 56"},
+    pants:{y0:8,y1:114,d:"M28 8 H72 L80 114 H58 L50 40 L42 114 H20 Z",x:"M28 16 H72 M50 16 V40"},
+    top:{y0:14,y1:112,d:"M34 14 L18 22 L6 42 L20 50 L28 40 V112 H72 V40 L80 50 L94 42 L82 22 L66 14 Q50 26 34 14 Z",x:"M28 104 H72"},
+    jacket:{y0:12,y1:112,d:"M34 12 L16 20 L6 108 H20 L28 44 V112 H72 V44 L80 108 H94 L84 20 L66 12 L50 30 Z",x:"M50 30 V112 M36 60 H44 M56 60 H64"},
+    dress:{y0:8,y1:114,d:"M38 8 H62 L64 34 L86 114 H14 L36 34 Z",x:"M36 34 H64"},
+    skirt:{y0:22,y1:102,d:"M30 22 H70 L88 102 H12 Z",x:"M30 30 H70 M40 30 L32 102 M60 30 L68 102"},
+    shoe:{y0:50,y1:84,d:"M8 76 Q10 54 30 52 L48 50 Q60 64 82 68 Q96 71 94 84 H8 Z",x:"M8 84 H94 M34 54 L40 66 M42 52 L48 64"},
+    swim:{y0:30,y1:96,d:"M20 30 Q30 46 46 40 L50 36 L54 40 Q70 46 80 30 L76 52 Q50 62 24 52 Z M28 72 H72 L64 92 Q50 98 36 92 Z",x:""},
+    hat:{y0:40,y1:86,d:"M10 78 Q50 92 90 78 Q84 70 72 70 Q70 40 50 40 Q30 40 28 70 Q16 70 10 78 Z",x:"M28 68 Q50 76 72 68"},
+    glasses:{y0:44,y1:72,d:"M8 56 Q8 44 22 44 H40 Q46 44 46 56 Q46 72 30 72 Q10 72 8 56 Z M54 56 Q54 44 60 44 H78 Q92 44 92 56 Q90 72 70 72 Q54 72 54 56 Z",x:"M46 52 Q50 48 54 52"}
+  };
+  function shapeFor(txt){
+    var t=String(txt||"").toLowerCase();
+    var map=[["shoe",/zapat|sandal|bota|tenis|ojota|calzado|mocas/],["glasses",/lente|gafa/],["hat",/gorr|sombr|cap\b|piluso/],["swim",/bikini|malla|traje de baño|enteriz/],["shorts",/bermud|short|jort/],["skirt",/pollera|falda/],["dress",/vestid|solero/],["jacket",/campera|chaqueta|blazer|saco|tapado|chaleco|cardigan/],["pants",/pantal|jean|jogger|calza|legging/]];
+    for(var i=0;i<map.length;i++)if(map[i][1].test(t))return map[i][0];
+    return null;
+  }
+  function lum(h){h=hex(h,"#888888").slice(1);if(h.length===3)h=h.split("").map(function(c){return c+c}).join("");return (0.299*parseInt(h.substr(0,2),16)+0.587*parseInt(h.substr(2,2),16)+0.114*parseInt(h.substr(4,2),16))/255;}
+  function sketch(t){
+    var pr=t.presentacion||{},bg=hex((pr.fondo||{}).hex,"#EEF0F5");
+    var sh=SHAPES[shapeFor(t.nombre)||shapeFor(STATE.query)||"top"];
+    var cols=(t.colores||[]).slice(0,3);if(!cols.length)cols=[{nombre:"",hex:"#7A869E"}];
+    var W=600,H=240,slot=W/cols.length,txtc=lum(bg)<0.45?"#FFFFFF":"#141B30";
+    var g='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Boceto de la foto de '+esc(t.nombre)+'"><rect width="'+W+'" height="'+H+'" fill="'+bg+'"/><ellipse cx="'+W/2+'" cy="'+(H-26)+'" rx="'+(W*0.42)+'" ry="9" fill="'+txtc+'" opacity=".06"/>';
+    cols.forEach(function(c,i){
+      var cx=slot*i+slot/2,sc=Math.min(slot*0.85/100,(H-60)/(sh.y1-sh.y0),2.4),ox=cx-50*sc,oy=(H-34-(sh.y1-sh.y0)*sc)/2-sh.y0*sc,fill=hex(c.hex,"#7A869E"),st=lum(fill)<0.35?"#FFFFFF":"#141B30",rot=cols.length>1?(i-1)*4:0;
+      g+='<g transform="translate('+ox+','+oy+') rotate('+rot+' '+(50*sc)+' '+((sh.y0+sh.y1)/2*sc)+') scale('+sc+')"><path d="'+sh.d+'" fill="'+fill+'" fill-rule="evenodd" stroke="'+st+'" stroke-opacity=".18" stroke-width="1"/>'+(sh.x?'<path d="'+sh.x+'" fill="none" stroke="'+st+'" stroke-opacity=".28" stroke-width="1" stroke-dasharray="2 2"/>':'')+'</g>';
+      if(c.nombre)g+='<text x="'+cx+'" y="'+(H-8)+'" text-anchor="middle" font-family="Albert Sans, Arial, sans-serif" font-size="13" fill="'+txtc+'" opacity=".7">'+esc(c.nombre)+'</text>';
+    });
+    return '<div class="sketch">'+g+'</svg></div>';
+  }
+
+  // sources
+  var SRC={
+    tiktok:["TikTok",function(q){return "https://www.tiktok.com/search?q="+encodeURIComponent(q)}],
+    instagram:["Instagram",function(q){return "https://www.instagram.com/explore/tags/"+encodeURIComponent(String(q).replace(/[^\wáéíóúñ]/gi,"").toLowerCase())+"/"}],
+    pinterest:["Pinterest",function(q){return "https://www.pinterest.com/search/pins/?q="+encodeURIComponent(q)}],
+    amazon:["Amazon",function(q){return "https://www.amazon.com/s?k="+encodeURIComponent(q)}],
+    shein:["Shein",function(q){return "https://us.shein.com/pdsearch/"+encodeURIComponent(q)+"/"}],
+    mercadolibre:["Mercado Libre UY",function(q){return "https://listado.mercadolibre.com.uy/"+encodeURIComponent(slug(q))}],
+    google:["Google Trends",function(q){return "https://trends.google.com/trends/explore?geo=UY&q="+encodeURIComponent(q)}],
+    gimg:["Google Imágenes",function(q){return "https://www.google.com/search?tbm=isch&q="+encodeURIComponent(q)}]
+  };
+  function srcKey(p){p=String(p||"").toLowerCase().replace(/\s/g,"");if(p.indexOf("mercado")>=0)return "mercadolibre";if(p.indexOf("google")>=0||p.indexOf("trend")>=0)return "google";return SRC[p]?p:null;}
+
+  // ---------- real photos: assets + db ----------
+  var ASSETS=null,DB=null,FOTOS={},MAXF=3;
+  function fkey(tn){return norm(STATE.query)+"--"+norm(tn);}
+  function fillPhotos(){
+    var els=document.querySelectorAll("section[data-fk]");
+    for(var i=0;i<els.length;i++)paintPhotos(els[i]);
+  }
+  // ---------- photo library: real photos by garment type, picked automatically ----------
+  var LIB={};
+  var CATS=["bermuda_h","short_m","jean_h","jean_m","pantalon_m","cargo","camisa_h","camisa_m","remera_h","remera_m","top_m","vestido","pollera","campera_h","campera_m","buzo","sweater","zapatillas","sandalias","bikini","bano_h","gorra","lentes","deportivo"];
+  var RELATED={short_m:["bermuda_h"],bermuda_h:["short_m"],jean_m:["jean_h"],jean_h:["jean_m"],camisa_m:["camisa_h","remera_m"],camisa_h:["camisa_m","remera_h"],remera_m:["remera_h","top_m"],remera_h:["remera_m"],top_m:["remera_m"],campera_m:["campera_h","sweater"],campera_h:["campera_m","buzo"],buzo:["sweater"],sweater:["buzo"],pantalon_m:["jean_m","cargo"],cargo:["pantalon_m","jean_h"],sandalias:["zapatillas"],zapatillas:["sandalias"],bano_h:["bermuda_h"],bikini:["top_m"],deportivo:["buzo","remera_m"],vestido:["pollera","top_m"],pollera:["vestido"],gorra:["remera_h"],lentes:["remera_m"]};
+  function catFor(t,i){
+    var c=String(t.foto_categoria||"").toLowerCase();if(CATS.indexOf(c)>=0)return c;
+    var nz=function(s){return " "+String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")+" ";};
+    var g=detectPublico(t.nombre)||STATE.publico||"unisex";var w=g==="mujer"?"m":(g==="hombre"?"h":(i%2?"m":"h"));
+    var R=[[/zapatill|sneaker|tenis/,"zapatillas"],[/sandal|ojota|alpargat|chancl|zueco|calzado/,"sandalias"],[/short de bano|malla de hombre|swim short/,"bano_h"],[/bikini|malla|traje de bano|enteriz|swimsuit/,w==="h"?"bano_h":"bikini"],[/gorr|sombrer|piluso|bucket|[^a-z]cap[^a-z]/,"gorra"],[/lente|gafa|anteojo/,"lentes"],[/deportiv|jogging|calza|legging|biker|athleisure/,"deportivo"],[/vestido|solero|dress/,"vestido"],[/pollera|falda|skirt/,"pollera"],[/bermud|short|jort/,w==="m"?"short_m":"bermuda_h"],[/cargo/,"cargo"],[/jean|denim|vaquer/,w==="m"?"jean_m":"jean_h"],[/pantal|palazzo|trouser|wide leg|jogger/,w==="m"?"pantalon_m":"cargo"],[/buzo|hoodie|canguro|sudadera/,"buzo"],[/sweater|cardigan|tejid|punto|pullover|knit|chaleco/,"sweater"],[/campera|chaqueta|blazer|saco|tapado|abrigo|jacket|parka/,w==="m"?"campera_m":"campera_h"],[/[^a-z]top|musculosa|crop|corset|bralette/,w==="h"?"remera_h":"top_m"],[/camisa|blusa|shirt|guayabera|kimono/,w==="m"?"camisa_m":"camisa_h"],[/remera|camiseta|t-shirt|polo|[^a-z]tee/,w==="m"?"remera_m":"remera_h"]];
+    var texts=[nz(t.nombre),nz(STATE.query)];
+    for(var x=0;x<texts.length;x++)for(var k=0;k<R.length;k++)if(R[k][0].test(texts[x]))return R[k][1];
+    return "";
+  }
+  function libPhotos(cat,seed){
+    if(!cat)return [];
+    var order=[cat].concat(RELATED[cat]||[]),list=[],exact=true;
+    for(var i=0;i<order.length;i++){if((LIB[order[i]]||[]).length){list=LIB[order[i]];exact=i===0;break;}}
+    if(!list.length)return [];
+    var h=0;for(var j=0;j<seed.length;j++)h=(h*31+seed.charCodeAt(j))>>>0;
+    var out=[];for(var n=0;n<Math.min(2,list.length);n++)out.push(Object.assign({ref:true,exact:exact},list[(h+n)%list.length]));
+    return out;
+  }
+  function paintPhotos(el){
+    var key=el.dataset.fk,own=FOTOS[key]||[],gal=el.querySelector(".gal"),sk=el.querySelector(".sketch-wrap"),up=el.querySelector(".up-wrap");
+    var arr=own.length?own:libPhotos(el.dataset.cat,el.dataset.tn||"");
+    if(arr.length){
+      gal.hidden=false;sk.hidden=true;
+      gal.innerHTML=arr.map(function(f){return '<div class="ph"><img src="'+esc(f.url)+'" alt="'+(f.ref?'Foto de referencia para ':'Foto real de ')+esc(el.dataset.tn)+'" loading="lazy">'+(f.ref?'<span class="refb">Foto de referencia</span>':'')+(f.autor?'<a class="cr" href="'+esc(/^https:\/\/unsplash\.com\//.test(f.link||'')?f.link:'https://unsplash.com')+'" target="_blank" rel="noopener">Foto: '+esc(f.autor)+' · Unsplash</a>':'')+(ASSETS&&DB&&!f.ref?'<button type="button" class="rm" data-fk="'+esc(key)+'" data-id="'+esc(f.id)+'" aria-label="Quitar foto">×</button>':'')+'</div>'}).join("");
+    }else{gal.hidden=true;gal.innerHTML="";sk.hidden=false;}
+    if(up)up.hidden=!(ASSETS&&DB)||own.length>=MAXF;
+    var hint=el.querySelector(".paste-hint");if(hint)hint.hidden=!(ASSETS&&DB)||own.length>=MAXF;
+    var cap=el.querySelector(".lib-cap");if(cap)cap.hidden=!(arr.length&&!own.length);
+  }
+  function phMsg(key,t,err){var el=document.querySelector('section[data-fk="'+key+'"] .ph-msg');if(el){el.textContent=t||"";el.className="ph-msg"+(err?" err":"");}}
+
+  $("results").addEventListener("change",function(e){
+    var inp=e.target.closest("input.fileup");if(!inp||!inp.files||!inp.files[0])return;
+    var file=inp.files[0];inp.value="";
+    subirFoto(file,inp.dataset.fk,inp.dataset.tn);
+  });
+  // paste (Ctrl+V) or drop an image onto a trend's photo quadrant
+  var ACTIVE=null;
+  function setActive(sec){
+    var all=document.querySelectorAll("section.q.act[data-fk]");for(var i=0;i<all.length;i++)all[i].classList.toggle("on",all[i]===sec);
+    ACTIVE=sec?{key:sec.dataset.fk,tn:sec.dataset.tn}:null;
+  }
+  $("results").addEventListener("pointerdown",function(e){var s=e.target.closest("section.q.act[data-fk]");if(s)setActive(s);});
+  $("results").addEventListener("focusin",function(e){var s=e.target.closest("section.q.act[data-fk]");if(s)setActive(s);});
+  function imageFrom(dt){if(!dt)return null;var fs=dt.files||[];for(var i=0;i<fs.length;i++)if(/^image\//.test(fs[i].type))return fs[i];var it=dt.items||[];for(var j=0;j<it.length;j++)if(it[j].kind==="file"&&/^image\//.test(it[j].type))return it[j].getAsFile();return null;}
+  document.addEventListener("paste",function(e){
+    if(!ACTIVE||!(ASSETS&&DB))return;
+    var tag=(document.activeElement&&document.activeElement.tagName)||"";if(tag==="INPUT"||tag==="TEXTAREA")return;
+    var f=imageFrom(e.clipboardData);
+    if(!f){phMsg(ACTIVE.key,"Lo que pegaste no es una imagen. En la foto hacé clic derecho → Copiar imagen.",true);return;}
+    e.preventDefault();subirFoto(f,ACTIVE.key,ACTIVE.tn);
+  });
+  $("results").addEventListener("dragover",function(e){var s=e.target.closest("section.q.act[data-fk]");if(s&&ASSETS&&DB){e.preventDefault();setActive(s);}});
+  $("results").addEventListener("drop",function(e){
+    var s=e.target.closest("section.q.act[data-fk]");if(!s||!(ASSETS&&DB))return;e.preventDefault();
+    var f=imageFrom(e.dataTransfer);
+    if(f)subirFoto(f,s.dataset.fk,s.dataset.tn);else phMsg(s.dataset.fk,"Esa imagen no se pudo tomar al arrastrarla. Probá con clic derecho → Copiar imagen y pegala acá con Ctrl+V.",true);
+  });
+  function subirFoto(file,key,tn){
+    if(!(ASSETS&&DB))return;
+    if((FOTOS[key]||[]).length>=MAXF){phMsg(key,"Ya hay "+MAXF+" fotos. Quitá una para sumar otra.",true);return;}
+    if(!/^image\//.test(file.type)){phMsg(key,"Elegí una imagen (JPG, PNG o WebP).",true);return;}
+    if(file.size>20*1024*1024){phMsg(key,"La foto pesa más de 20 MB. Elegí una más liviana.",true);return;}
+    phMsg(key,"Subiendo foto…");
+    ASSETS.upload(file).then(function(r){
+      var arr=(FOTOS[key]||[]).concat([{id:r.id,url:r.url}]).slice(-MAXF);
+      FOTOS[key]=arr;paintAll(key);
+      return DB.doc("fotos/"+key).set({prenda:STATE.query,tendencia:tn,fotos:arr,actualizado:Date.now()});
+    }).then(function(){phMsg(key,"Foto guardada.");},function(e){phMsg(key,e&&e.code==="too_large"?"La foto es muy pesada.":(e&&e.code==="not_uploader"?"Solo quien edita la página puede subir fotos.":"No se pudo guardar la foto. Probá de nuevo."),true);});
+  }
+  $("results").addEventListener("click",function(e){
+    var b=e.target.closest("button.rm");if(b){
+      var key=b.dataset.fk,id=b.dataset.id,arr=(FOTOS[key]||[]).filter(function(f){return f.id!==id});
+      FOTOS[key]=arr;paintAll(key);
+      var ref=DB.doc("fotos/"+key);(arr.length?ref.set({prenda:STATE.query,fotos:arr,actualizado:Date.now()}):ref.delete()).catch(function(){phMsg(key,"No se pudo quitar la foto.",true);});
+      ASSETS.delete(id).catch(function(){});
+      return;
+    }
+    var c=e.target.closest("#copyBtn");if(c)copyAnalysis();
+    if(e.target.closest("#verEj")){STATE={data:EXAMPLE,example:true,query:"bermuda",marca:"",publico:"unisex"};render();$("results").scrollIntoView({behavior:"smooth",block:"start"});}
+  });
+  function paintAll(key){var el=document.querySelector('section[data-fk="'+key+'"]');if(el)paintPhotos(el);}
+
+  var STATE={data:EXAMPLE,example:true,query:"bermuda",marca:""};
+
+  function card(t,i){
+    var c=calc(t),pl=t.plataformas||{},pr=t.presentacion||{};
+    var topK=PLATS.reduce(function(a,b){return num(pl[b[0]])>num(pl[a[0]])?b:a})[0];
+    var m=c.margen,mcls=m==null?"bueno":(m>=0.45?"bueno":(m>=0.25?"justo":"bajo"));
+    var mtxt=m==null?"con el precio sugerido":(m>=0.45?"buen margen":(m>=0.25?"margen justo":"margen bajo"));
+    var key=fkey(t.nombre);
+    var f=(t.fuentes||[]).map(function(x){var k=srcKey(x&&x.plataforma);return k?{k:k,q:x.busqueda||t.nombre,w:x.que_se_ve||""}:null}).filter(Boolean).slice(0,4);
+    if(!f.length)f=[{k:"tiktok",q:t.nombre,w:""},{k:"pinterest",q:t.nombre,w:""}];
+    var pubWord=STATE.publico&&STATE.publico!=="unisex"&&!detectPublico(t.nombre)?" "+PUB[STATE.publico]:"";
+    var qimg=t.nombre+pubWord+(STATE.marca?" "+STATE.marca:"");
+    var noLlego=!c.hasUY;
+
+    return '<article class="card">'+
+      '<header class="card-h"><div class="ttl"><span class="rank">'+(i+1)+'</span><div><h3>'+esc(t.nombre)+'</h3><p>'+esc(t.descripcion)+'</p><div class="pills">'+
+        (noLlego?'<span class="pill op">No llegó a Uruguay · oportunidad</span>':'<span class="pill">Presencia en Uruguay: '+esc(t.presencia_uy||"s/d")+'</span>')+
+        (t.confianza?'<span class="pill">Confianza IA: '+esc(t.confianza)+'</span>':'')+
+      '</div><div class="cf">'+filtros(t,c).map(function(f){return '<span class="'+(f.ok===null?'nd':(f.ok?'':'no'))+'">'+(f.ok===null?'? ':(f.ok?'✓ ':'✕ '))+f.s+'</span>'}).join("")+'</div></div></div><div class="score"><b>'+Math.round(num(t.puntaje))+'</b><span>puntaje de tendencia</span></div></header>'+
+      '<div class="quads">'+
+
+        // Q1 fotos
+        '<section class="q act" tabindex="0" data-fk="'+esc(key)+'" data-cat="'+esc(catFor(t,i))+'" data-tn="'+esc(t.nombre)+'"><div class="q-h"><h4>Fotos de la prenda</h4></div>'+
+          '<div class="gal" hidden></div>'+
+          '<p class="cap lib-cap" hidden>La página eligió estas fotos solas según el tipo de prenda. Pegá una foto exacta de esta tendencia para reemplazarlas.</p>'+
+          '<div class="sketch-wrap">'+sketch(t)+'<p class="cap">Boceto de cómo armar la foto. Sumá fotos reales del proveedor o propias.</p></div>'+
+          '<p class="paste-hint" hidden><b>Para sumar una foto real:</b> abrí Pinterest o Google Imágenes, hacé clic derecho en la foto → <b>Copiar imagen</b>, tocá este recuadro y pegala con <b>Ctrl+V</b>. También podés arrastrarla o subirla.</p>'+
+          '<div class="ph-actions">'+
+            '<label class="btn-sm up up-wrap" hidden>Subir foto real<input class="fileup hide" type="file" accept="image/*" data-fk="'+esc(key)+'" data-tn="'+esc(t.nombre)+'"></label>'+
+            '<a class="btn-sm" href="'+esc(SRC.pinterest[1](qimg+" outfit"))+'" target="_blank" rel="noopener">Fotos en Pinterest ↗</a>'+
+            '<a class="btn-sm" href="'+esc(SRC.gimg[1](qimg))+'" target="_blank" rel="noopener">Google Imágenes ↗</a>'+
+          '</div><span class="ph-msg"></span>'+
+        '</section>'+
+
+        // Q2 números
+        '<section class="q inf"><div class="q-h"><h4>Números</h4></div>'+
+          '<div class="nums">'+
+            '<div class="n"><span>Compra afuera</span><b>'+usd(c.oMid)+'</b></div>'+
+            '<div class="n"><span>Puesta en Uruguay</span><b>'+uyu(c.costoUYU)+'</b></div>'+
+            '<div class="n"><span>'+(c.hasUY?'Se vende en Uruguay':'Precio sugerido')+'</span><b>'+(c.hasUY?uyu((c.uMin+c.uMax)/2):uyu(c.sugerido))+'</b></div>'+
+            '<div class="n m"><span>Margen</span><b class="'+mcls+'">'+(c.hasUY?Math.round(m*100)+'%':'50%')+'</b><em>'+mtxt+'</em></div>'+
+          '</div>'+
+          '<p class="small">Afuera '+usd(num((t.precio_origen_usd||{}).min))+'–'+usd(num((t.precio_origen_usd||{}).max))+' en '+esc(t.fuente_origen||"origen")+'. '+(c.hasUY?'En Uruguay '+uyu(c.uMin)+'–'+uyu(c.uMax)+'.':'Sin oferta local.')+' Incluye envío '+usd(S.envio)+' e impuestos '+S.pct+'%.</p>'+
+          (c.shein?'<div class="shline"><span>En Shein: '+usd(c.shein.usd)+' · al cliente en UY '+uyu(c.shein.uyu)+'</span><span class="vd '+c.shein.cls+'">'+c.shein.v+'</span><a href="'+esc(sheinUrl(t))+'" target="_blank" rel="noopener">Ver en Shein ↗</a></div>':'<div class="shline"><span>Sin precio de Shein.</span><a href="'+esc(sheinUrl(t))+'" target="_blank" rel="noopener">Buscar en Shein ↗</a></div>')+
+        '</section>'+
+
+        // Q3 dónde se vio
+        '<section class="q inf"><div class="q-h"><h4>Dónde se vio la tendencia</h4></div>'+
+          '<ul class="src">'+f.map(function(x){var s=SRC[x.k];return '<li><a href="'+esc(s[1](x.q))+'" target="_blank" rel="noopener">'+s[0]+' ↗</a><span>“'+esc(x.q)+'”'+(x.w?' · '+esc(x.w):'')+'</span></li>'}).join("")+'</ul>'+
+          '<div class="plats">'+PLATS.map(function(p){return '<div class="plat'+(p[0]===topK?' t':'')+'"><b>'+Math.round(num(pl[p[0]]))+'</b>'+p[1]+'</div>'}).join("")+'</div>'+
+        '</section>'+
+
+        // Q4 cómo venderla
+        '<section class="q act"><div class="q-h"><h4>Cómo venderla</h4></div><div class="sell">'+
+          '<p><span class="lbl">Foto</span>'+esc(pr.foto||"")+((pr.props||[]).length?' Sumá '+pr.props.map(esc).join(" y ")+'.':'')+'</p>'+
+          '<p><span class="lbl">Copy para Instagram</span><span class="quote">“'+esc(pr.copy||"")+'”</span></p>'+
+          '<p><span class="lbl">Gancho para TikTok</span><span class="quote">“'+esc(pr.hook||"")+'”</span></p>'+
+          ((t.colores||[]).length?'<p><span class="lbl">Colores</span>'+t.colores.map(function(co){return '<span class="sw"><i style="background:'+hex(co.hex,"transparent")+'"></i>'+esc(co.nombre)+'</span>'}).join("")+'</p>':'')+
+          ((t.marcas||[]).length?'<p><span class="lbl">Marcas que la venden</span>'+t.marcas.map(esc).join(" · ")+'</p>':'')+
+          '<p><span class="lbl">Público y riesgo</span>'+esc(t.publico||"")+'. '+esc(t.riesgo||"")+'</p>'+
+        '</div></section>'+
+        provSection(t)+
+      '</div></article>';
+  }
+
+  function webs(){
+    var q=STATE.query+(STATE.marca?" "+STATE.marca:"");
+    var list=[["mercadolibre","Qué se vende y a cuánto en Uruguay"],["tiktok","Videos y outfits del momento"],["instagram","Publicaciones con el hashtag"],["pinterest","Ideas de fotos y looks"],["amazon","Más vendidos y reseñas"],["shein","Precios de importación bajos"],["gimg","Fotos reales de la prenda"],["google","Cuánto se busca en Uruguay"]];
+    $("webs").innerHTML=list.map(function(l){var s=SRC[l[0]];return '<a class="wcard" href="'+esc(s[1](l[0]==="instagram"?q.replace(/\s+/g,""):q))+'" target="_blank" rel="noopener"><b>'+s[0]+'</b><span>'+l[1]+'</span></a>'}).join("");
+  }
+
+  function render(){
+    var d=STATE.data;
+    if(d){
+      var ts=(d.tendencias||[]).slice().sort(function(a,b){return num(b.puntaje)-num(a.puntaje)});
+      var mk=d.marcas||{},mi=mk.internacionales||[],mu=mk.uruguay||[];
+      var tf=ts.map(function(t){var c=calc(t),f=filtros(t,c);return {t:t,c:c,n:f.filter(function(x){return x.ok}).length}});
+      var all4=tf.filter(function(x){return x.n===4}).length;
+      var best=tf.slice().sort(function(a,b){return b.n-a.n||num(b.t.puntaje)-num(a.t.puntaje)})[0];
+      var rx=d.radiografia||{};
+      var rxCats=[["cortes","Cortes y siluetas"],["estilos","Estilos y estéticas"],["colores","Colores y estampados"],["telas","Telas y materiales"]].filter(function(k){return Array.isArray(rx[k[0]])&&rx[k[0]].length});
+      var shRows=tf.filter(function(x){return x.c.shein});
+      $("results").innerHTML=
+        '<section class="sec"><div class="sec-h"><h2 class="b">Análisis de tendencia</h2><p>'+(STATE.example?'Ejemplo precargado':'Resultado de la IA')+(STATE.publico&&STATE.publico!=="unisex"?' · para '+PUB[STATE.publico]:'')+(STATE.marca?' · marca '+esc(STATE.marca):'')+(STATE.example?'':' · <button class="linkbtn" type="button" id="verEj">Ver el ejemplo de bermudas con fotos</button>')+'</p></div>'+
+          '<div class="panel an">'+
+            '<h3 class="an-t">'+esc(d.prenda||STATE.query)+' · '+esc(d.temporada_label||"Verano 2026–2027")+'</h3>'+
+            '<p class="an-v">'+esc(d.veredicto||d.resumen)+'</p>'+
+            '<div class="kpis">'+
+              '<div class="kpi main"><b>'+esc(best?best.t.nombre:"—")+'</b><span>la apuesta principal</span></div>'+
+              '<div class="kpi"><b>'+ts.length+'</b><span>variantes analizadas</span></div>'+
+              '<div class="kpi"><b>'+all4+'</b><span>pasan los 4 filtros</span></div>'+
+              '<div class="kpi"><b>'+esc(d.mes_venta||"Dic.")+'</b><span>mes ideal para vender</span></div>'+
+            '</div>'+
+            '<div class="fil"><span>Filtros aplicados:</span><span class="fchip">Tendencia vs. moda pasajera</span><span class="fchip">¿Sirve para Uruguay?</span><span class="fchip">¿Hay lugar acá?</span><span class="fchip">¿Le gana a Shein?</span></div>'+
+            '<div class="res-grid">'+
+              '<div class="box"><h3>Qué está pasando</h3><p>'+esc(d.resumen)+'</p><p class="sm">'+esc(d.temporada||"")+'</p></div>'+
+              '<div class="box o"><h3>Lectura de la IA</h3><p>'+esc(d.oportunidad)+'</p></div>'+
+              '<div class="box"><h3>Marcas</h3>'+(mi.length?'<p><span class="sm">Afuera:</span> '+mi.map(esc).join(" · ")+'</p>':'')+(mu.length?'<p><span class="sm">En Uruguay:</span> '+mu.map(esc).join(" · ")+'</p>':'')+(!mi.length&&!mu.length?'<p class="sm">Sin datos de marcas.</p>':'')+'</div>'+
+            '</div>'+
+          '</div></section>'+
+        (rxCats.length?'<section class="sec"><div class="sec-h"><h2>Qué se está usando</h2><p>Radiografía de la prenda: cortes, estilos, colores y telas</p></div>'+
+          '<div class="rx">'+rxCats.map(function(k){return '<div class="rx-c"><h3>'+k[1]+'</h3>'+rx[k[0]].slice(0,5).map(function(it){var e=ESTADO[String(it.estado||"").toLowerCase().replace("en ","")]||ESTADO.subida;return '<div class="rx-i"><b>'+esc(it.nombre)+'</b><span class="st '+e[0]+'">'+e[1]+'</span><p>'+esc(it.detalle||"")+'</p></div>'}).join("")+'</div>'}).join("")+'</div>'+
+          '<div class="legend"><span><span class="st f">Fuerte</span>ya se usa mucho</span><span><span class="st s">En subida</span>está creciendo</span><span><span class="st b">Bajando</span>está perdiendo fuerza</span></div>'+
+        '</section>':'')+
+        (shRows.length?'<section class="sec"><div class="sec-h"><h2 class="b">Comparar con Shein</h2><p>Lo que paga un cliente uruguayo si la compra directo en Shein</p></div>'+
+          '<div class="panel tbl-wrap"><table class="sh"><thead><tr><th>Estilo</th><th class="num">En Shein</th><th class="num">Al cliente en UY</th><th class="num">Tu precio</th><th class="num">Diferencia</th><th>Veredicto</th><th></th></tr></thead><tbody>'+
+          shRows.map(function(x){var s=x.c.shein;return '<tr><td class="nm">'+esc(x.t.nombre)+'</td><td class="num">'+usd(s.usd)+'</td><td class="num">'+uyu(s.uyu)+'</td><td class="num">'+uyu(s.tu)+(x.c.hasUY?'':' <span class="sm">sug.</span>')+'</td><td class="num">'+(Math.round(s.ratio*10)/10).toLocaleString("es-UY")+'×</td><td><span class="vd '+s.cls+'">'+s.v+'</span></td><td><a href="'+esc(sheinUrl(x.t))+'" target="_blank" rel="noopener">Ver en Shein ↗</a></td></tr>'}).join("")+
+          '</tbody></table></div>'+
+          '<p class="sh-note">Al cliente en UY = precio en Shein + envío '+usd(S.envShein)+' por prenda + IVA 22% (compras desde China por franquicia, desde mayo de 2026), al dólar de $'+S.tc+'. Tu precio es el de venta en Uruguay o, si no llegó, el sugerido. Le gana a Shein si tu precio no supera '+String(SHEIN_MAX).replace(".",",")+' veces lo de Shein: el cliente compra hoy, se prueba el talle y no espera semanas ni gasta su cupo de envíos. Precios de Shein estimados por la IA; verificalos con el enlace.</p>'+
+        '</section>':'')+
+        '<section class="sec"><div class="sec-h"><h2>Tendencias</h2><p>'+ts.length+' estilos ordenados por puntaje</p></div>'+
+          '<div class="cards">'+ts.map(card).join("")+'</div>'+
+          '<div class="after"><button class="linkbtn" type="button" id="copyBtn">Copiar análisis para el documento</button></div></section>';
+      fillPhotos();
+    }else $("results").innerHTML="";
+    webs();
+  }
+
+  function copyAnalysis(){
+    var d=STATE.data,b=$("copyBtn"),mk=d.marcas||{};
+    var L=["Cazador de Tendencias · "+(d.prenda||STATE.query)+(STATE.marca?" · "+STATE.marca:""),"",d.resumen,"Oportunidad: "+d.oportunidad];
+    if((mk.internacionales||[]).length)L.push("Marcas afuera: "+mk.internacionales.join(", "));
+    if((mk.uruguay||[]).length)L.push("En Uruguay: "+mk.uruguay.join(", "));
+    L.push("","Supuestos: US$1 = $"+S.tc+", envío "+usd(S.envio)+" por prenda, impuestos "+S.pct+"%","");
+    (d.tendencias||[]).slice().sort(function(a,b){return num(b.puntaje)-num(a.puntaje)}).forEach(function(t,i){var c=calc(t);
+      L.push((i+1)+". "+t.nombre+" ("+Math.round(num(t.puntaje))+") · afuera "+usd(c.oMid)+" · puesta en UY "+uyu(c.costoUYU)+" · "+(c.hasUY?"en UY "+uyu(c.uMin)+"–"+uyu(c.uMax)+" · margen "+Math.round(c.margen*100)+"%":"no llegó · sugerido "+uyu(c.sugerido)));
+      if(c.shein)L.push("   Shein: "+usd(c.shein.usd)+" · al cliente en UY "+uyu(c.shein.uyu)+" · "+c.shein.v);
+      var P=proveedores(t);if(P)L.push("   Dónde traerla: "+P.rows.map(function(r){return r.C.n+" "+usd(r.p)+" (mín. "+r.min+") → "+uyu(r.uyu)}).join("; "));
+      var f=(t.fuentes||[]).map(function(x){return (x.plataforma||"")+': "'+(x.busqueda||"")+'"'}).join("; ");
+      if(f)L.push("   Visto en: "+f);
+      if(t.presentacion)L.push("   Foto: "+(t.presentacion.foto||"")+" Copy: "+(t.presentacion.copy||""));
+    });
+    var txt=L.join("\n"),done=function(){b.textContent="Copiado";setTimeout(function(){b.textContent="Copiar análisis para el documento"},1800)};
+    var fb=function(){var ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();done();};
+    try{navigator.clipboard.writeText(txt).then(done,fb)}catch(e){fb()}
+  }
+
+  function note(t,warn){$("note").innerHTML=t?'<p class="note'+(warn?' warn':'')+'">'+t+'</p>':'';}
+
+  // capabilities
+  var sample=null,ready=false,ctl=null,timer=null;
+  function status(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t;}
+  // ---------- capability layer ----------
+  // Inside Claude the page uses the Claude runtime (window.claude): IA, shared database and file storage.
+  // Outside Claude (GitHub Pages, a local file) it falls back to: Claude API with the user's own key,
+  // localStorage as database, and the photo library in data/biblioteca.js.
+  var hasClaude=!!(window.claude&&typeof window.claude.use==="function");
+  var NOTE_DEMO=hasClaude?'La búsqueda en vivo funciona al abrir la página dentro de Claude. Abajo ves un ejemplo.':'Para buscar en vivo, abrí <b>Supuestos de importación</b> y cargá tu clave de API de Claude. Mientras tanto ves un ejemplo.';
+  var LOCAL={
+    sample:function(){var k="",m="";try{k=localStorage.getItem("ct_api_key")||"";m=localStorage.getItem("ct_api_model")||""}catch(e){}return k?apiSample(k,m||"claude-sonnet-5-5"):null;},
+    db:function(){return localDB();},
+    assets:function(){return localAssets();}
+  };
+  var use=function(n){
+    var local=function(){return LOCAL[n]?LOCAL[n]():null};
+    if(!hasClaude)return Promise.resolve(local());
+    return window.claude.use(n).catch(function(){return null}).then(function(v){return v||local()});
+  };
+  function apiSample(key,model){
+    var call=function(input,opts){
+      opts=opts||{};
+      return fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal:opts.signal,
+        headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:model,max_tokens:8000,messages:[{role:"user",content:String(input)}]})})
+      .then(function(r){
+        if(r.status===401||r.status===403)throw {code:"not_granted"};
+        if(r.status===429)throw {code:"rate_limited"};
+        if(!r.ok)throw {code:"upstream_error"};
+        return r.json();
+      },function(e){throw (e&&e.name==="AbortError")?{code:"cancelled"}:{code:"upstream_error"};})
+      .then(function(j){
+        var t=(j.content||[]).filter(function(c){return c.type==="text"}).map(function(c){return c.text}).join("");
+        if(!t.trim())throw {code:"empty_completion"};
+        return {text:t,truncated:j.stop_reason==="max_tokens"};
+      });
+    };
+    var f=function(i,o){return call(i,o)};
+    f.json=function(i,o){return call(String(i)+"\n\nRespondé solo con el JSON, sin texto antes ni después.",o).then(function(r){
+      var t=r.text,a=t.search(/[\[{]/),b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
+      try{return JSON.parse(t.slice(a,b+1))}catch(e){throw {code:"invalid_json",text:t}}
+    })};
+    f.__api=true;
+    return f;
+  }
+  function localDB(){
+    var subs={};
+    function load(c){var m={};try{m=JSON.parse(localStorage.getItem("ct_db_"+c)||"{}")||{}}catch(e){}return m;}
+    function read(c){
+      if(c==="biblioteca"){var B=window.BIBLIOTECA||{};return Object.keys(B).map(function(k){return {id:k,data:function(){return {fotos:B[k]}}}});}
+      var m=load(c);return Object.keys(m).map(function(k){return {id:k,data:function(){return m[k]}}});
+    }
+    function emit(c){(subs[c]||[]).forEach(function(f){f({docs:read(c)})});}
+    function save(c,m){try{localStorage.setItem("ct_db_"+c,JSON.stringify(m));return Promise.resolve();}catch(e){return Promise.reject({code:"quota_exceeded"});}}
+    return {
+      collection:function(c){return {onSnapshot:function(n){(subs[c]=subs[c]||[]).push(n);setTimeout(function(){n({docs:read(c)})},0);return function(){}}}},
+      doc:function(p){var parts=String(p).split("/"),c=parts[0],id=parts[1];return {
+        set:function(d){var m=load(c);m[id]=d;return save(c,m).then(function(){emit(c)});},
+        delete:function(){var m=load(c);delete m[id];return save(c,m).then(function(){emit(c)});}
+      }}
+    };
+  }
+  function localAssets(){
+    // outside Claude, photos are shrunk and kept in this browser as data URLs
+    return {
+      upload:function(blob){return new Promise(function(res,rej){
+        var img=new Image(),u=URL.createObjectURL(blob);
+        img.onload=function(){var w=Math.min(640,img.naturalWidth),h=Math.round(img.naturalHeight*w/img.naturalWidth),c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);URL.revokeObjectURL(u);res({id:"l"+Date.now().toString(36)+Math.random().toString(36).slice(2,7),url:c.toDataURL("image/jpeg",0.8)});};
+        img.onerror=function(){URL.revokeObjectURL(u);rej({code:"unsupported_type"})};img.src=u;
+      })},
+      delete:function(){return Promise.resolve({deleted:true})}
+    };
+  }
+  // photo URLs the page accepts: Claude file storage, the repo's own images, or local data URLs
+  function okUrl(u){u=String(u||"");return /^\/_blob\/[0-9a-f]+$/.test(u)||/^img\/[\w\/.-]+\.jpe?g$/.test(u)||/^data:image\/(jpeg|png|webp);base64,/.test(u);}
+  var samplePromise=use("sample");
+  samplePromise.then(function(s){sample=s;ready=true;if(s)status("on",s.__api?"IA lista · API de Claude":"IA lista");else{status("off","Modo ejemplo");note(NOTE_DEMO,true);}});
+  Promise.all([use("db"),use("assets")]).then(function(r){
+    DB=r[0];ASSETS=r[1];
+    if(DB){
+      try{DB.collection("fotos").onSnapshot(function(snap){
+        var m={};snap.docs.forEach(function(d){var v=d.data();if(v&&Array.isArray(v.fotos))m[d.id]=v.fotos.filter(function(f){return f&&okUrl(f.url)}).slice(0,MAXF);});
+        FOTOS=m;fillPhotos();
+      },function(){});}catch(e){}
+      try{DB.collection("biblioteca").onSnapshot(function(snap){
+        var m={};snap.docs.forEach(function(d){var v=d.data();if(v&&Array.isArray(v.fotos))m[d.id]=v.fotos.filter(function(f){return f&&okUrl(f.url)}).slice(0,12);});
+        LIB=m;fillPhotos();renderAlerta();
+      },function(){});}catch(e){}
+      try{DB.collection("destacado").onSnapshot(function(snap){
+        var arr=[];snap.docs.forEach(function(d){var v=d.data();if(v&&v.prenda&&/^\d{4}-\d{2}$/.test(d.id)){v.mes=d.id;arr.push(v);}});
+        AL.hist=arr;var cur=arr.filter(function(h){return h.mes===MKEY})[0];
+        if(cur){AL.doc=cur;AL.state="ok";renderAlerta();}
+        else{AL.state="ok";renderAlerta();samplePromise.then(function(){if(!AL.doc)generarAlerta(false);});}
+      },function(){AL.state="ok";renderAlerta();});}catch(e){AL.state="ok";renderAlerta();}
+    }else{
+      AL.state="ok";renderAlerta();
+      samplePromise.then(function(){if(sample&&!AL.doc)generarAlerta(false);});
+    }
+    fillPhotos();
+  });
+
+  // ---------- prenda del mes ----------
+  var NOW=new Date(),MKEY=NOW.getFullYear()+"-"+String(NOW.getMonth()+1).padStart(2,"0");
+  var MLABEL=(function(){var s=NOW.toLocaleDateString("es-UY",{month:"long",year:"numeric"}).replace(" de "," ");return s.charAt(0).toUpperCase()+s.slice(1);})();
+  var AL={doc:null,hist:[],state:"loading",gen:false};
+  var AL_EX={mes:MKEY,mes_label:MLABEL,prenda:"Camisa de lino oversize",busqueda:"camisa de lino",porque:"Llega la primavera y el lino vuelve a crecer en Pinterest y TikTok. Se usa abierta sobre musculosa o en conjunto con bermuda, y sirve hasta marzo.",puntaje:86,estado:"subida",plataforma_top:"Pinterest",precio_uy_uyu:1990,accion:"Traé arena, blanco y celeste antes de noviembre y mostrala en conjunto con bermuda de lino."};
+  var BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+  function renderAlerta(){
+    var el=$("alerta");
+    if(AL.state==="loading"&&!AL.doc){el.innerHTML='<div class="panel noti-wait"><div class="noti-ic">'+BELL+'</div><b>Buscando la prenda del mes…</b></div>';return;}
+    if(AL.state==="gen"&&!AL.doc){el.innerHTML='<div class="panel noti-wait"><div class="noti-ic">'+BELL+'</div><span><b class="pulse">La IA está eligiendo la prenda de '+esc(MLABEL.toLowerCase())+'</b><br>Revisa las tendencias del mes. Tarda unos segundos.</span></div>';return;}
+    var d=AL.doc||AL_EX,ex=!AL.doc;
+    var e=ESTADO[String(d.estado||"").toLowerCase().replace("en ","")]||ESTADO.subida;
+    var seen=false;try{seen=localStorage.getItem("ct_alerta_vista")===d.mes+"|"+d.prenda}catch(x){}
+    var hist=AL.hist.filter(function(h){return h.mes!==d.mes}).sort(function(a,b){return a.mes<b.mes?1:-1}).slice(0,6);
+    var nph=libPhotos(catFor({nombre:d.prenda,foto_categoria:d.foto_categoria},0),d.prenda||"")[0];
+    el.innerHTML='<div class="panel noti'+(nph?' has-ph':'')+'" role="status"><div class="noti-ic'+(seen?'':' ring')+'">'+BELL+(seen?'':'<i></i>')+'</div><div>'+
+      '<div class="noti-top">'+(seen?'':'<span class="new">Nuevo</span>')+'<span>'+esc(d.mes_label||MLABEL)+' · elegida por la IA</span>'+(ex?'<span class="ex">Ejemplo</span>':'')+'</div>'+
+      '<h3>'+esc(d.prenda)+'</h3><p>'+esc(d.porque)+'</p>'+
+      '<div class="noti-stats"><div><b>'+Math.round(num(d.puntaje))+'</b><span>puntaje de tendencia</span></div><div><b>'+e[1]+'</b><span>cómo viene</span></div><div><b>'+esc(d.plataforma_top||"—")+'</b><span>dónde más pega</span></div><div><b>'+(num(d.precio_uy_uyu)?uyu(num(d.precio_uy_uyu)):"No llegó")+'</b><span>se vende en Uruguay</span></div></div>'+
+      (d.accion?'<p class="noti-acc"><b>Qué hacer:</b> '+esc(d.accion)+'</p>':'')+
+      '<div class="noti-actions"><button class="go sm" type="button" id="alGo">Analizar esta prenda</button><a class="btn-sm" href="'+esc(SRC.tiktok[1](d.busqueda||d.prenda))+'" target="_blank" rel="noopener">Ver en TikTok ↗</a>'+(sample?'<button class="linkbtn" type="button" id="alRe">Elegir otra con la IA</button>':'')+'</div>'+
+      '</div>'+(nph?'<figure class="noti-ph"><img src="'+esc(nph.url)+'" alt="Foto de referencia: '+esc(d.prenda)+'"><figcaption>Foto de referencia · '+esc(nph.autor||"")+' · Unsplash</figcaption></figure>':'')+(hist.length?'<div class="noti-hist"><span>Meses anteriores:</span>'+hist.map(function(h){return '<button type="button" data-q="'+esc(h.busqueda||h.prenda)+'">'+esc(h.mes_label||h.mes)+' · '+esc(h.prenda)+'</button>'}).join("")+'</div>':'')+'</div>';
+    $("alGo").onclick=function(){try{localStorage.setItem("ct_alerta_vista",d.mes+"|"+d.prenda)}catch(x){}$("q").value=d.busqueda||d.prenda;$("marca").value="";run($("q").value,"");};
+    if($("alRe"))$("alRe").onclick=function(){generarAlerta(true);};
+  }
+  $("alerta").addEventListener("click",function(e){var b=e.target.closest(".noti-hist button");if(b){$("q").value=b.dataset.q;run(b.dataset.q,"");}});
+  function promptMes(prev){
+    return ["Sos analista de tendencias de moda para un emprendedor que importa ropa para revender en Uruguay.",
+      "Mes actual: "+MLABEL+". En Uruguay las estaciones son las del hemisferio sur.",
+      "Elegí UNA prenda concreta, con su estilo (por ejemplo \"camisa de lino oversize\", no solo \"camisa\"), que sea la que más conviene destacar este mes por su tracción en TikTok, Instagram, Pinterest y Amazon y por la temporada en Uruguay.",
+      prev.length?"No repitas estas prendas: "+prev.join(", ")+".":"",
+      "Son estimaciones: no inventes porcentajes. Español rioplatense, frases cortas.",
+      'Respondé SOLO con JSON: {"prenda":string,"busqueda":string (2 o 3 palabras para buscarla),"porque":string (1-2 frases),"puntaje":number 0-100,"estado":"fuerte"|"subida","plataforma_top":"TikTok"|"Instagram"|"Pinterest"|"Amazon","precio_uy_uyu":number|null (precio típico de venta en Uruguay; null si no llegó),"accion":string (1 frase: qué hacer este mes)}'
+    ].filter(Boolean).join("\n");
+  }
+  function generarAlerta(force){
+    if(!sample||AL.gen)return;
+    var old=AL.doc;AL.gen=true;
+    if(force||!old){AL.doc=null;AL.state="gen";renderAlerta();}
+    var prev=AL.hist.filter(function(h){return h.mes!==MKEY}).map(function(h){return h.prenda}).slice(0,6);
+    if(force&&old)prev.push(old.prenda);
+    sample.json(promptMes(prev),force?{cache:false}:{cache:{gcTime:86400000}})
+      .then(function(r){
+        if(!r||!r.prenda)throw {code:"invalid_json"};
+        var doc={mes:MKEY,mes_label:MLABEL,prenda:String(r.prenda).slice(0,80),busqueda:String(r.busqueda||r.prenda).slice(0,60),porque:String(r.porque||"").slice(0,320),puntaje:num(r.puntaje),estado:String(r.estado||"subida").slice(0,12),plataforma_top:String(r.plataforma_top||"").slice(0,20),precio_uy_uyu:r.precio_uy_uyu==null?null:num(r.precio_uy_uyu),accion:String(r.accion||"").slice(0,240),actualizado:Date.now()};
+        AL.doc=doc;AL.state="ok";
+        try{localStorage.removeItem("ct_alerta_vista")}catch(x){}
+        renderAlerta();
+        if(DB)DB.doc("destacado/"+MKEY).set(doc).catch(function(){});
+      })
+      .catch(function(){AL.doc=old;AL.state="ok";renderAlerta();})
+      .then(function(){AL.gen=false;});
+  }
+
+  function prompt(q,marca){
+    return ["Sos analista de tendencias de moda y e-commerce. Ayudás a un emprendedor que importa ropa para revender en Uruguay.",
+      "Fecha: octubre de 2026; en Uruguay se viene el verano.",
+      'Prenda: "'+q+'". Dólar: 1 USD = '+S.tc+' UYU.',
+      S.publico==="unisex"?"Público: todos (incluí variantes de mujer y de hombre si corresponde).":
+        "Público: SOLO "+PUB[S.publico]+". Todas las variantes, marcas, precios, colores, fotos, búsquedas y la radiografía tienen que ser de ropa de "+PUB[S.publico]+", no de otro público. En las búsquedas en inglés (fuentes y shein_busqueda) agregá \""+PUB_EN[S.publico]+"\". En el campo prenda escribí la prenda con su público (por ejemplo \"Camisas de mujer\").",
+      marca?'Marca indicada: "'+marca+'". Enfocá el análisis en modelos de esa marca (o en lo más parecido si no la tiene) y decí si se vende en Uruguay.':"Sin marca indicada.",
+      "Identificá las 5 variantes o estilos de esta prenda con más tracción hoy en TikTok, Instagram, Pinterest y los más vendidos de Amazon, según lo que sabés.",
+      "Para cada variante estimá también el precio típico por unidad en Shein (shein_usd, en dólares, lo que paga un cliente en la web) y la búsqueda en inglés para encontrarla en Shein (shein_busqueda). Evaluá tres filtros: tendencia (true si tiene al menos una temporada más de vida, false si es moda pasajera), uruguay (true si sirve para el clima y el estilo de Uruguay) y hueco (true si en Uruguay todavía hay lugar: poca oferta o mala oferta).",
+      "Para cada variante listá en proveedores de 4 a 6 lugares donde un importador uruguayo la puede comprar para revender. canal es uno de: aliexpress, alibaba, 1688, shein, temu, amazon, brasil (mayoristas de Brás, São Paulo), local (mayoristas en Uruguay). Mezclá minoristas (para probar con pocas unidades) y mayoristas (más baratos, con pedido mínimo). Para cada uno: precio_usd por unidad (si es local o Brasil, pasalo a dólares), minimo (pedido mínimo en unidades; 1 si no hay), dias (demora estimada hasta Uruguay, por ejemplo \"15-30\" o \"Inmediato\"), nota (1 frase útil: calidad, riesgo o consejo) y busqueda (cómo buscarla en ese sitio: en inglés para China y EE.UU., en portugués para Brasil, en español para Uruguay).",
+      "Para cada variante elegí foto_categoria: el tipo de prenda más parecido de esta lista, teniendo en cuenta el público (sufijo _h hombre, _m mujer): "+CATS.join(", ")+". Si no hay uno exacto, elegí el más cercano visualmente (por ejemplo un chaleco tejido → sweater, un kimono → camisa_m, unas alpargatas → sandalias).",
+      "Armá además una radiografía de la prenda: 3 o 4 ítems en cada categoría (cortes, estilos, colores, telas), cada uno con nombre, detalle de una frase y estado: \"fuerte\" (ya se usa mucho), \"subida\" (está creciendo) o \"bajando\" (pierde fuerza). Incluí al menos uno \"bajando\" en total.",
+      "Sumá un veredicto de 1-2 frases sobre qué conviene traer, el nombre de la temporada (por ejemplo \"Verano 2026–2027\") y el mes ideal para vender abreviado (por ejemplo \"Dic.\").",
+      "Para cada una: estimá el precio por unidad en origen (Amazon, Shein, AliExpress o Temu) y el de venta en Uruguay (Mercado Libre Uruguay, cadenas grandes y marcas locales). Si no se consigue en Uruguay, precio_uy_uyu = null y presencia_uy = \"no llegó\".",
+      "En fuentes, indicá 2 a 4 lugares donde se ve la tendencia: plataforma (una de tiktok, instagram, pinterest, amazon, shein, mercadolibre, google) y la búsqueda o hashtag exacto que usaría alguien para verlo (en el idioma en que más se usa en esa plataforma), más qué se ve ahí.",
+      "En marcas, nombrá marcas reales y conocidas que venden esa variante. En marcas.uruguay, solo marcas o cadenas que estés razonablemente seguro de que venden en Uruguay; si no sabés, usá \"Mercado Libre Uruguay\" o \"Marcas locales\".",
+      "En presentacion, describí cómo hacer la foto de producto: fondo (nombre y hex), 1 o 2 accesorios que acompañen, una frase de copy y un gancho para TikTok.",
+      "Son estimaciones: usá rangos realistas y marcá tu confianza. Español rioplatense, frases muy cortas. Puntajes de 0 a 100. Colores en hex reales.",
+      "Respondé SOLO con JSON con esta forma:",
+      '{"prenda":string,"temporada_label":string,"veredicto":string,"mes_venta":string,"resumen":string (1-2 frases),"temporada":string (1 frase),"oportunidad":string (1 frase),"radiografia":{"cortes":[{"nombre":string,"detalle":string,"estado":"fuerte"|"subida"|"bajando"}],"estilos":[...],"colores":[...],"telas":[...]},"marcas":{"internacionales":[string],"uruguay":[string]},"tendencias":[{"nombre":string,"descripcion":string (1 frase),"puntaje":number,"plataformas":{"tiktok":number,"instagram":number,"pinterest":number,"amazon":number},"fuentes":[{"plataforma":string,"busqueda":string,"que_se_ve":string}],"marcas":[string],"colores":[{"nombre":string,"hex":"#RRGGBB"}] (3),"precio_origen_usd":{"min":number,"max":number},"fuente_origen":string,"precio_uy_uyu":{"min":number,"max":number}|null,"presencia_uy":"alta"|"media"|"baja"|"no llegó","shein_usd":number,"shein_busqueda":string,"filtros":{"tendencia":boolean,"uruguay":boolean,"hueco":boolean},"foto_categoria":string,"proveedores":[{"canal":string,"precio_usd":number,"minimo":number,"dias":string,"nota":string,"busqueda":string}],"publico":string,"presentacion":{"foto":string,"fondo":{"nombre":string,"hex":"#RRGGBB"},"props":[string],"copy":string,"hook":string},"riesgo":string,"confianza":"alta"|"media"|"baja"}]}'
+    ].join("\n");
+  }
+
+  function showLoading(q){
+    var start=Date.now(),i=0;$("loading").hidden=false;
+    $("loading").innerHTML='<div class="loading"><span class="msg pulse" id="lmsg">'+MSGS[0]+'</span><span class="s"><span id="lsec">0 s</span> · '+esc(q)+' · <button class="linkbtn" type="button" id="stop">Detener</button></span></div>';
+    $("stop").addEventListener("click",function(){if(ctl)ctl.abort();});
+    timer=setInterval(function(){var s=Math.round((Date.now()-start)/1000);if(s%3===0){i=(i+1)%MSGS.length;var m=$("lmsg");if(m)m.textContent=MSGS[i];}var e=$("lsec");if(e)e.textContent=s+" s";},1000);
+  }
+  function hideLoading(){clearInterval(timer);$("loading").hidden=true;$("loading").innerHTML="";}
+
+  var ERR={not_granted:"No se dio permiso para usar Claude. Recargá y aceptá el permiso.",sampling_disabled:"Claude no está disponible para esta cuenta.",rate_limited:"Demasiadas búsquedas seguidas. Esperá un momento.",session_expired:"Tu sesión venció. Iniciá sesión de nuevo.",invalid_json:"La respuesta no se pudo leer. Probá de nuevo.",refused:"La IA no respondió esta búsqueda. Probá con otra prenda.",empty_completion:"No hubo respuesta. Probá con una prenda más concreta."};
+  function validate(d){if(!d||!Array.isArray(d.tendencias))throw {code:"invalid_json"};d.tendencias=d.tendencias.filter(function(t){return t&&t.nombre}).slice(0,6);if(!d.tendencias.length)throw {code:"invalid_json"};return d;}
+
+  function run(q,marca){
+    q=String(q||"").trim();marca=String(marca||"").trim();if(!q){$("q").focus();return;}
+    var dp=detectPublico(q);if(dp)setPublico(dp);
+    if(!ready){note("Conectando con la IA. Probá en unos segundos.",true);return;}
+    if(!sample){note(NOTE_DEMO,true);return;}
+    if(ctl)ctl.abort();ctl=new AbortController();var my=ctl;
+    note("");$("go").disabled=true;clearInterval(timer);showLoading(q+(marca?" · "+marca:""));$("results").innerHTML="";
+    sample.json(prompt(q,marca),{signal:my.signal,modelTier:"default",cache:{gcTime:86400000}})
+      .then(function(d){if(my!==ctl)return;STATE={data:validate(d),example:false,query:q,marca:marca,publico:S.publico};addHist(q);})
+      .catch(function(e){if(my!==ctl)return;var c=e&&e.code;if(c==="cancelled")note("Búsqueda detenida.");else if(c==="not_granted"&&sample&&sample.__api){status("off","Clave inválida");note("La clave de API no es válida o no tiene permisos. Revisala en Supuestos de importación.",true);}else{if(c==="not_granted"||c==="sampling_disabled")status("off","Sin permiso de IA");note(ERR[c]||"Hubo un problema de conexión. Probá de nuevo.",true);}})
+      .then(function(){if(my===ctl){hideLoading();$("go").disabled=false;render();}});
+  }
+  $("form").addEventListener("submit",function(e){e.preventDefault();run($("q").value,$("marca").value);});
+
+  chips();render();renderAlerta();
+})();
+</script>
+
+</body>
+</html>
