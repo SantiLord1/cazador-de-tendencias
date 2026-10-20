@@ -928,7 +928,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
         var ready;
         try{ready=(P.auth&&P.auth.isSignedIn&&!P.auth.isSignedIn())?P.auth.signIn():Promise.resolve();}catch(e){ready=Promise.resolve();}
         var work=Promise.resolve(ready).then(function(){},function(){throw {code:"not_granted",puter:true};})
-          .then(function(){return P.ai.chat(String(input),{model:PUTER_MODEL});})
+          .then(function(){return P.ai.chat(String(input),{model:PUTER_MODEL,max_tokens:12000});})
           .then(function(r){
             var t="";
             try{var c=r&&r.message&&r.message.content;t=typeof c==="string"?c:(Array.isArray(c)?c.map(function(x){return x&&x.text||""}).join(""):"");}catch(e){}
@@ -967,11 +967,36 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     };
     var f=wrapSample(call);f.__server=true;return f;
   }
+  // Reads the JSON in an AI answer. Accepts code fences and text around it, and if the answer was cut
+  // in the middle it keeps everything up to the last complete item and closes the brackets.
+  function leerJSON(t){
+    t=String(t||"").replace(/```(?:json)?/gi,"");
+    var a=t.search(/[\[{]/);if(a<0)return undefined;
+    var body=t.slice(a),b=Math.max(body.lastIndexOf("}"),body.lastIndexOf("]"));
+    try{return JSON.parse(body.slice(0,b+1));}catch(e){}
+    var cut=body.length;
+    for(var tries=0;tries<60;tries++){
+      var p=body.lastIndexOf("}",cut-1);if(p<0)break;
+      var piece=body.slice(0,p+1),stack=[],inStr=false,esc=false;
+      for(var i=0;i<piece.length;i++){var ch=piece[i];
+        if(inStr){if(esc)esc=false;else if(ch==="\\")esc=true;else if(ch==='"')inStr=false;continue;}
+        if(ch==='"')inStr=true;else if(ch==="{"||ch==="[")stack.push(ch);else if(ch==="}"||ch==="]")stack.pop();}
+      if(!inStr){
+        var close=stack.reverse().map(function(c){return c==="{"?"}":"]"}).join("");
+        try{var v=JSON.parse(piece.replace(/,\s*$/,"")+close);if(v&&typeof v==="object")return v;}catch(e){}
+      }
+      cut=p;
+    }
+    return undefined;
+  }
   function wrapSample(call){
     var f=function(i,o){return call(i,o)};
     f.json=function(i,o){return call(String(i)+"\n\nRespondé solo con el JSON, sin texto antes ni después.",o).then(function(r){
       var t=r.text,a=t.search(/[\[{]/),b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
-      try{return JSON.parse(t.slice(a,b+1))}catch(e){throw {code:"invalid_json",text:t}}
+      try{window.__ultimaRespuesta=t;}catch(x){}
+      var v=leerJSON(t);
+      if(v===undefined){try{console.warn("Cazador de Tendencias: no se pudo leer la respuesta de la IA",t.slice(0,400),"…",t.slice(-400));}catch(x){}throw {code:"invalid_json",text:t};}
+      return v;
     })};
     return f;
   }
@@ -1097,7 +1122,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
       S.publico==="unisex"?"Público: todos (incluí variantes de mujer y de hombre si corresponde).":
         "Público: SOLO "+PUB[S.publico]+". Todas las variantes, marcas, precios, colores, fotos, búsquedas y la radiografía tienen que ser de ropa de "+PUB[S.publico]+", no de otro público. En las búsquedas en inglés (fuentes y shein_busqueda) agregá \""+PUB_EN[S.publico]+"\". En el campo prenda escribí la prenda con su público (por ejemplo \"Camisas de mujer\").",
       marca?'Marca indicada: "'+marca+'". Enfocá el análisis en modelos de esa marca (o en lo más parecido si no la tiene) y decí si se vende en Uruguay.':"Sin marca indicada.",
-      "Identificá las 5 variantes o estilos de esta prenda con más tracción hoy en TikTok, Instagram, Pinterest y los más vendidos de Amazon, según lo que sabés.",
+      "Identificá las "+(sample&&sample.__puter?"4":"5")+" variantes o estilos de esta prenda con más tracción hoy en TikTok, Instagram, Pinterest y los más vendidos de Amazon, según lo que sabés."+(sample&&sample.__puter?" Sé muy conciso: frases de pocas palabras y como máximo 4 proveedores por variante.":""),
       "Para cada variante estimá también el precio típico por unidad en Shein (shein_usd, en dólares, lo que paga un cliente en la web) y la búsqueda en inglés para encontrarla en Shein (shein_busqueda). Evaluá tres filtros: tendencia (true si tiene al menos una temporada más de vida, false si es moda pasajera), uruguay (true si sirve para el clima y el estilo de Uruguay) y hueco (true si en Uruguay todavía hay lugar: poca oferta o mala oferta).",
       "Para cada variante listá en proveedores de 4 a 6 lugares donde un importador uruguayo la puede comprar para revender. canal es uno de: aliexpress, alibaba, 1688, shein, temu, amazon, brasil (mayoristas de Brás, São Paulo), local (mayoristas en Uruguay). Mezclá minoristas (para probar con pocas unidades) y mayoristas (más baratos, con pedido mínimo). Para cada uno: precio_usd por unidad (si es local o Brasil, pasalo a dólares), minimo (pedido mínimo en unidades; 1 si no hay), dias (demora estimada hasta Uruguay, por ejemplo \"15-30\" o \"Inmediato\"), nota (1 frase útil: calidad, riesgo o consejo) y busqueda (cómo buscarla en ese sitio: en inglés para China y EE.UU., en portugués para Brasil, en español para Uruguay).",
       "Para cada variante elegí foto_categoria: el tipo de prenda más parecido de esta lista, teniendo en cuenta el público (sufijo _h hombre, _m mujer): "+CATS.join(", ")+". Si no hay uno exacto, elegí el más cercano visualmente (por ejemplo un chaleco tejido → sweater, un kimono → camisa_m, unas alpargatas → sandalias).",
