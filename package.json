@@ -1,0 +1,14 @@
+{
+  "name": "cazador-de-tendencias",
+  "version": "2.0.0",
+  "description": "Página con IA que detecta tendencias de ropa, compara precios con Uruguay y Shein y calcula costos de importación.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "private": true
+}
