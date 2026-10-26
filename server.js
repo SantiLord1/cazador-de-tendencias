@@ -138,7 +138,13 @@ async function apiIa(req, res) {
 
   porIp.set(ip, usadas + 1);
   total += 1;
-  const r = await pedirGemini(input);
+  let r = await pedirGemini(input);
+  // A veces Gemini devuelve un JSON mal armado: si no se puede leer, se pide una vez más.
+  if (r.text && r.stop_reason !== "max_tokens" && !leerJSON(r.text)) {
+    console.error("Gemini devolvió un JSON que no se puede leer; reintentando");
+    const r2 = await pedirGemini(input);
+    if (r2.text) r = r2;
+  }
   if (r.text) return json(res, 200, { text: r.text, stop_reason: r.stop_reason });
   // si falló, la búsqueda no cuenta para los límites
   porIp.set(ip, Math.max(0, (porIp.get(ip) || 1) - 1));

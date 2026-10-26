@@ -884,7 +884,9 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     if(!sample){note(SERVER_STATE&&!SERVER_STATE.ia?NOTE_NOKEY:NOTE_DEMO,true);return;}
     if(ctl)ctl.abort();ctl=new AbortController();var my=ctl;
     note("");$("go").disabled=true;clearInterval(timer);showLoading(q+(marca?" · "+marca:""));$("results").innerHTML="";
-    sample.json(prompt(q,marca),{signal:my.signal,modelTier:"default",cache:{gcTime:86400000}})
+    var pedir=function(){return sample.json(prompt(q,marca),{signal:my.signal,modelTier:"default",cache:{gcTime:86400000}});};
+    // if the answer can't be read, ask once more before showing an error
+    pedir().catch(function(e){if(my===ctl&&e&&e.code==="invalid_json"){var l=$("lmsg");if(l)l.textContent="Revisando la respuesta…";return pedir();}throw e;})
       .then(function(d){if(my!==ctl)return;STATE={data:validate(d),example:false,query:q,marca:marca,publico:S.publico};addHist(q);})
       .catch(function(e){if(my!==ctl)return;var c=e&&e.code;if(c==="cancelled")note("Búsqueda detenida.");else if(sample&&sample.__server&&c==="rate_limited"){var se=e.server;note(se==="limite_persona"?"Llegaste al límite de búsquedas por persona de hoy. Mañana se renueva.":(se==="limite_diario"?"La página llegó al límite de búsquedas de hoy. Mañana se renueva.":"La IA gratis está saturada en este momento. Esperá un minuto y probá de nuevo."),true);}else if(c==="not_granted"&&sample&&sample.__api){status("off","Clave inválida");note("La clave de API no es válida o no tiene permisos. Revisala en Supuestos de importación.",true);}else{if(c==="not_granted"||c==="sampling_disabled")status("off","Sin permiso de IA");note(ERR[c]||"Hubo un problema de conexión. Probá de nuevo.",true);}})
       .then(function(){if(my===ctl){hideLoading();$("go").disabled=false;render();}});
