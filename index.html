@@ -379,7 +379,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   <div id="results"></div>
 
   <section class="sec">
-    <div class="sec-h"><h2 class="b">Ver en las webs</h2><p>Se abren en otra pestaña con la búsqueda hecha</p></div>
+    <div class="sec-h"><h2 class="b">Ver en las webs</h2><p>Se abren en otra pestaña con la búsqueda hecha. Pinterest, Instagram y Mercado Libre pueden pedir iniciar sesión; Amazon y Shein a veces piden confirmar que no sos un robot.</p></div>
     <div class="wgrid" id="webs"></div>
   </section>
 
@@ -513,7 +513,7 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
     alibaba:{n:"Alibaba",t:"Mayorista · fábricas China",ruta:"formal",url:function(q){return "https://www.alibaba.com/trade/search?SearchText="+encodeURIComponent(q)}},
     "1688":{n:"1688",t:"Mayorista China · con agente",ruta:"formal",url:function(q){return gsearch("1688.com "+q)}},
     shein:{n:"Shein",t:"Minorista · referencia",ruta:"courier",url:function(q){return "https://us.shein.com/pdsearch/"+encodeURIComponent(q)+"/"}},
-    temu:{n:"Temu",t:"Minorista · China",ruta:"courier",url:function(q){return "https://www.temu.com/search_result.html?search_key="+encodeURIComponent(q)}},
+    temu:{n:"Temu",t:"Minorista · China",ruta:"courier",url:function(q){return gsearch("site:temu.com "+q)}},
     amazon:{n:"Amazon EE.UU.",t:"Minorista · EE.UU.",ruta:"courier",url:function(q){return "https://www.amazon.com/s?k="+encodeURIComponent(q)}},
     brasil:{n:"Mayoristas de Brasil",t:"Mayorista · Brás, São Paulo",ruta:"mercosur",url:function(q){return gsearch(q+" Brás São Paulo")}},
     local:{n:"Mayoristas en Uruguay",t:"Mayorista local",ruta:"local",url:function(q){return "https://listado.mercadolibre.com.uy/"+encodeURIComponent(slug(q))}}
@@ -547,9 +547,19 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
   }
 
   // sources
+  // Short hashtag from a search: "#jorts" -> jorts, "Nike Killshot o estilo retro" -> nikekillshot,
+  // "baggy cargo shorts outfit" -> baggycargo. Hashtags with many words find nothing.
+  var TAG_STOP=/^(de|del|la|las|el|los|con|sin|para|por|y|o|en|un|una|al|estilo|tipo|outfit|outfits|look|looks|style|styling|ideas|idea|trend|trends|tendencia|aesthetic|mujer|mujeres|hombre|hombres|women|womens|woman|men|mens|man|kids|ninos|nino|ninas|nina|for|the|and|with|of)$/;
+  function tagOf(q){
+    var t=String(q||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    var h=t.match(/#([a-z0-9_]+)/);if(h)return h[1];
+    var w=t.split(/[^a-z0-9]+/).filter(function(x){return x.length>1&&!TAG_STOP.test(x)});
+    return w.slice(0,2).join("")||t.replace(/[^a-z0-9]/g,"")||"moda";
+  }
   var SRC={
-    tiktok:["TikTok",function(q){return "https://www.tiktok.com/search?q="+encodeURIComponent(q)}],
-    instagram:["Instagram",function(q){return "https://www.instagram.com/explore/tags/"+encodeURIComponent(String(q).replace(/[^\wáéíóúñ]/gi,"").toLowerCase())+"/"}],
+    // TikTok's search only works with a signed-in account, so links go to the hashtag page, which opens for anyone
+    tiktok:["TikTok",function(q){return "https://www.tiktok.com/tag/"+encodeURIComponent(tagOf(q))}],
+    instagram:["Instagram",function(q){return "https://www.instagram.com/explore/tags/"+encodeURIComponent(tagOf(q))+"/"}],
     pinterest:["Pinterest",function(q){return "https://www.pinterest.com/search/pins/?q="+encodeURIComponent(q)}],
     amazon:["Amazon",function(q){return "https://www.amazon.com/s?k="+encodeURIComponent(q)}],
     shein:["Shein",function(q){return "https://us.shein.com/pdsearch/"+encodeURIComponent(q)+"/"}],
@@ -615,8 +625,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
         '<div class="ph-actions"><span class="lbl">Ver fotos reales</span>'+
           '<a class="btn-sm" href="'+esc(SRC.pinterest[1](qimg+" outfit"))+'" target="_blank" rel="noopener">Pinterest ↗</a>'+
           '<a class="btn-sm" href="'+esc(SRC.gimg[1](qimg))+'" target="_blank" rel="noopener">Google Imágenes ↗</a>'+
-          '<a class="btn-sm" href="'+esc(SRC.instagram[1](qimg))+'" target="_blank" rel="noopener">Instagram ↗</a>'+
-          '<a class="btn-sm" href="'+esc(SRC.tiktok[1](qimg+" outfit"))+'" target="_blank" rel="noopener">TikTok ↗</a>'+
+          '<a class="btn-sm" href="'+esc(SRC.instagram[1]((f.filter(function(x){return x.k==="instagram"})[0]||{}).q||t.nombre))+'" target="_blank" rel="noopener">Instagram ↗</a>'+
+          '<a class="btn-sm" href="'+esc(SRC.tiktok[1]((f.filter(function(x){return x.k==="tiktok"})[0]||{}).q||t.nombre))+'" target="_blank" rel="noopener">TikTok ↗</a>'+
         '</div></section>'+
         provSection(t)+
       '</div></article>';
@@ -624,8 +634,8 @@ footer{margin-top:64px;padding-top:16px;border-top:1px solid var(--line);font-si
 
   function webs(){
     var q=STATE.query+(STATE.marca?" "+STATE.marca:"");
-    var list=[["mercadolibre","Qué se vende y a cuánto en Uruguay"],["tiktok","Videos y outfits del momento"],["instagram","Publicaciones con el hashtag"],["pinterest","Ideas de fotos y looks"],["amazon","Más vendidos y reseñas"],["shein","Precios de importación bajos"],["gimg","Fotos reales de la prenda"],["google","Cuánto se busca en Uruguay"]];
-    $("webs").innerHTML=list.map(function(l){var s=SRC[l[0]];return '<a class="wcard" href="'+esc(s[1](l[0]==="instagram"?q.replace(/\s+/g,""):q))+'" target="_blank" rel="noopener"><b>'+s[0]+'</b><span>'+l[1]+'</span></a>'}).join("");
+    var list=[["mercadolibre","Qué se vende y a cuánto en Uruguay"],["tiktok","Videos con el hashtag"],["instagram","Publicaciones con el hashtag"],["pinterest","Ideas de fotos y looks"],["amazon","Más vendidos y reseñas"],["shein","Precios de importación bajos"],["gimg","Fotos reales de la prenda"],["google","Cuánto se busca en Uruguay"]];
+    $("webs").innerHTML=list.map(function(l){var s=SRC[l[0]];return '<a class="wcard" href="'+esc(s[1](q))+'" target="_blank" rel="noopener"><b>'+s[0]+'</b><span>'+l[1]+'</span></a>'}).join("");
   }
 
   function render(){
